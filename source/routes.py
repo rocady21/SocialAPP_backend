@@ -298,13 +298,22 @@ def init_routes(app):
             return jsonify({"ok":False,"msg":"No tienes ningun chat"}),200
         def filtrar_info(it):
             item = it.serialize()
-            user_info = User.query.filter((User.id == item["id_user_from"]) | (User.id == item["id_user_to"])).first()
+            # condicional para cargar la info del usuario el cual inicio o le inicie el chat
+            id_user_search = None
+            if(item["id_user_to"] == id):
+                id_user_search = item["id_user_from"]
+            else:
+                id_user_search = item["id_user_to"]
+            
+
+            user_info = User.query.filter_by(id=id_user_search).first()
             if user_info == None:
                 return jsonify({"ok":False,"msg":"No se encontró el usuario"}),400
             user_infoF = user_info.serialize()
 
         
             return {
+                "id":item["id"],
                 "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
                 "last_message": item["last_message"],
                 "photo":user_infoF["foto"],
