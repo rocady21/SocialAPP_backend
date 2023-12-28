@@ -252,7 +252,7 @@ class Mensajes(db.Model):
     id_chat = db.Column(db.Integer, db.ForeignKey('chat.id'), nullable=False)
     id_user = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     fecha = db.Column(db.String(50), nullable=False)
-    mensaje = db.Column(db.String(1000), nullable=False),  # <-- Coma extra aquí
+    mensaje = db.Column(db.String(1000), nullable=False)
 
     # relación 
     def __init__(self, id_chat, id_user, fecha, mensaje):
