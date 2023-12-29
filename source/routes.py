@@ -316,6 +316,7 @@ def init_routes(app):
                 "id":item["id"],
                 "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
                 "last_message": item["last_message"],
+                "id_user_chat":user_infoF["id"],
                 "photo":user_infoF["foto"],
                 "time_last_message": item["date_last_message"],
                 "id_user_last_message":item["id_user_last_message"]
