@@ -263,6 +263,7 @@ class Mensajes(db.Model):
 
     def serialize(self):
         return {
+            "id":self.id,
             "id_chat": self.id_chat,
             "id_user": self.id_user,
             "fecha": self.fecha,

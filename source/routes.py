@@ -332,7 +332,9 @@ def init_routes(app):
     @app.route("/api/messages/<int:id_chat>",methods= ["GET"])
     @jwt_required()
     def get_messages_user(id_chat):
+
         me = get_jwt_identity()
+
         chat = Chat.query.filter_by(id=id_chat).first()
         user_me = User.query.filter_by(correo=me).first()
 
@@ -356,7 +358,6 @@ def init_routes(app):
                 "usuario":item["id_user"],
                 "mensaje":item["mensaje"],
                 "foto":user_meF["foto"],
-                "estado":user_meF["estado"],
                 "nombre":user_meF["nombre"] + " " + user_meF["apellido"],
                 "is_me":is_me
                 }
@@ -372,7 +373,6 @@ def init_routes(app):
                 "usuario":item["id_user"],
                 "mensaje":item["mensaje"],
                 "foto":info_UserF["foto"],
-                "estado":info_UserF["estado"],
                 "nombre":info_UserF["nombre"] + " " + info_UserF["apellido"],
                 "is_me": is_me
                 }

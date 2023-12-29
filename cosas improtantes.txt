@@ -1,0 +1,10 @@
+Hola red como estan? hoy queria compartir que empece un nuevo proyecto personal, estaba un poco perdido despues de hacer el portafolio y desmotivado por no encontrar trabajo aun,pero estoy empezando a dejar de verlo como algo malo y disfrutar el proceso aprendiendo nuevas tecnologias y planteandome nuevos desafios
+esta vez les comparto masomenos de que va la idea de la pagina, basicamente seria una red social como instagram por ejemplo, quiero que sea un lugar donde la gente pueda compartir sus fotos, pensamientos, su dia a dia etc
+pero va mas orientada a las personas que sean fans de cualquier anime o pelicula con un sistema que semanalmente sacaremos una serie de retos y juegos para ganarte insignias de tus peliculas, series o anime favorito
+por supuesto eso no sera todo, abra un sistema de niveles de isnignias, insignias unicas que no se podran comprar 
+tambien para conocer personas de tus mismos gustos, un sistema de chats de manera totalemente random con alguien que comparta tus mismas o parecidas insignias, el chat por supuesto sera secreto y ninguna persona conocera la identidad del otro hasta no haber pasado 3 semanas
+y por ultimo salas personalizadas para poder ver diferentes series
+esta seria la idea principal 
+
+
+tareas hoy: chat completo
