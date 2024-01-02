@@ -6,6 +6,7 @@ from flask_jwt_extended import create_access_token
 from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import JWTManager
+from sockets_routes import socket_io
 
 # Rutas de usuario
 def init_routes(app):
@@ -50,7 +51,6 @@ def init_routes(app):
 
     @app.route("/api/login", methods=["POST"])
     def Login():
-        print("XDDDDDDDDDDDD")
         data = request.json
 
         email = data["correo"]
@@ -68,7 +68,6 @@ def init_routes(app):
         if userExistF["correo"] == email and password_compare == True:
             # generar token
             access_token = create_access_token(identity=email)
-
             return jsonify({"ok":True,"data":userExistF,"token":access_token}),200
         return jsonify({"ok":False,"msg":"Error, contraseña incorrecta"}),401 
 
@@ -76,7 +75,6 @@ def init_routes(app):
     @app.route('/api/validToken', methods=['GET'])
     @jwt_required()
     def ValidarToken():
-        print("llego el token" + "TOKEN" )
         current_user = get_jwt_identity()
         user = User.query.filter(User.correo==current_user).first()
         userf = user.serialize()
@@ -124,7 +122,6 @@ def init_routes(app):
     @app.route("/api/send_request_friend",methods= ["POST"])
     def send_request():
         data = request.json
-        print("HOLA ")
         
         id_user_seguidor = data["id_user_seguidor"]
         id_user_seguid = data["id_user_seguido"]
@@ -255,6 +252,9 @@ def init_routes(app):
 
             db.session.add(newMessage,chatExist)
             db.session.commit()
+            # mando al front el nuevo mensaje creado
+            channel_name ="chat_" + str(chatExistF["id_user_from"]) + "_and_" + str(chatExistF["id_user_to"])
+            socket_io.emit(channel_name,{"mensjae":mensaje})
 
             return jsonify({"ok":True,"msg":"Mensaje enviado correctamente"})
         # creamos un nuevo chat
@@ -310,10 +310,11 @@ def init_routes(app):
             if user_info == None:
                 return jsonify({"ok":False,"msg":"No se encontró el usuario"}),400
             user_infoF = user_info.serialize()
-
         
             return {
                 "id":item["id"],
+                "user_from":item["id_user_from"],
+                "user_to":item["id_user_to"],
                 "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
                 "last_message": item["last_message"],
                 "id_user_chat":user_infoF["id"],
