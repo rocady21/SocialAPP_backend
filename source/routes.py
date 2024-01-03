@@ -233,6 +233,8 @@ def init_routes(app):
 
         hoy = datetime.now()
         # Buscamos el chat
+        userSendMessage = User.query.filter(User.id == id_from).first()
+        userSendMessageF = userSendMessage.serialize()
         chatExist = Chat.query.filter((Chat.id_user_from == id_from) & (Chat.id_user_to == id_to) | (Chat.id_user_from == id_to) & (Chat.id_user_to == id_from)).first()
         # si el chat existe, voy a enviar un mensaje normalmente y insertar el last message
         if chatExist != None:
@@ -253,10 +255,22 @@ def init_routes(app):
             db.session.add(newMessage,chatExist)
             db.session.commit()
             # mando al front el nuevo mensaje creado
+            newMessageUsable = newMessage.serialize()
             channel_name ="chat_" + str(chatExistF["id_user_from"]) + "_and_" + str(chatExistF["id_user_to"])
-            socket_io.emit(channel_name,{"mensjae":mensaje})
+            
 
-            return jsonify({"ok":True,"msg":"Mensaje enviado correctamente"})
+            format_response_message = {
+                    "id":newMessageUsable["id"],
+                    "fecha":newMessageUsable["fecha"],
+                    "chat":newMessageUsable["id_chat"],
+                    "usuario":newMessageUsable["id_user"],
+                    "mensaje":newMessageUsable["mensaje"],
+                    "foto":userSendMessageF["foto"],
+                    "nombre":userSendMessageF["nombre"] + " " + userSendMessageF["apellido"]
+                    }
+            
+            socket_io.emit(channel_name,{"mensaje":format_response_message})
+            return jsonify({"ok":True,"msg":"Mensaje enviado correctamente","msg_send":format_response_message})
         # creamos un nuevo chat
         
         UserExist1 = User.query.filter(User.id==id_from).first()
