@@ -1,5 +1,5 @@
 from flask import Flask,request,jsonify
-from models import db, User, Seguidor,Chat,Mensajes
+from models import db,User, Seguidor,Chat,Mensajes,Post,Photo_post,Like_Post,Comentario_Post
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 from flask_jwt_extended import create_access_token
@@ -7,6 +7,8 @@ from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import JWTManager
 from sockets_routes import socket_io
+
+
 
 # Rutas de usuario
 def init_routes(app):
@@ -399,4 +401,107 @@ def init_routes(app):
         msgsF = list(map(lambda item: filter_messages(item),msgs))
         return jsonify({"ok":True,"messages":msgsF,}),200
         
+# Rutas para post
+    # Api para crear un nuevo post
+    @app.route("/api/newPost", methods=["POST"])
+    def AddNewPost(): 
+        info = request.json
 
+        # creamos el post
+        newPost = Post(
+            id_user = info["id_user"],
+            descripcion = info["descripcion"],
+            fecha = info["fecha"]
+        )
+        db.session.add(newPost)
+        db.session.commit()
+        # ahora añadimos la foto
+        newPostF = newPost.serialize()
+        photos = info["photo"]
+        for x in photos:
+            newPhoto = Photo_post(
+                id_post=newPostF["id"],
+                photo_url=x
+            )
+            db.session.add(newPhoto)
+            db.session.commit()
+
+        return jsonify({"ok":True,"msg":"estos son tus posts:"})
+
+    # Posts espesifico
+    @app.route("/api/post/<int:id_post>", methods=["GET"])
+    def LoadPostSepsifique(id_post): 
+        posterExist = Post.query.filter_by(id=id_post).first()
+        if posterExist == None:
+            return jsonify({"ok":False,"msg":"No hay ningun poster con ese id"}),400
+        posterExistF = posterExist.serialize()
+        # cargo sus fotos y likes
+        photos_post = Photo_post.query.filter(id=posterExistF["id"]).all()
+        photos_f = list(map(lambda item: item.serialize(),photos_post))
+        # cargamos los likes y comentarios
+        likes_post = Like_Post.query.filter_by(id_post=posterExistF["id"]).all()
+
+        likesPost = None
+        def filter_infoUser(it):
+            item = it.serialize()
+            infoUser = User.query.filter_by(id=item["id_user"]).first()
+            if infoUser == None:
+                return "user no exist"
+            infF = infoUser.serialize()
+            return {    
+                "id":infF["id"],
+                "nombre":infF["nombre"],
+                "apellido":infF["apellido"],
+                "photo":infF["photo"],
+            }
+        if(len(likes_post) == 0 ):
+            likesPost = 0
+        else:
+            likes = list(map(lambda item: filter_infoUser(item)))
+        
+        
+
+        
+        return jsonify({"ok":True,"msg":"estos son tus posts:"})
+    
+    # posts de un usuario 
+    @app.route("/api/post/<int:id_user>", methods=["GET"])
+    def LoadPostUser(id_user): 
+        posterExist = Post.query.filter_by(id_user=id_user).all()
+        if len(posterExist) == 0:
+            return jsonify({"ok":False,"msg":"este usuario no tiene ningun post"}),400
+        
+        # filtro info de cada post
+        def filter_info_post(item): 
+            
+
+        posts_filter = list(map(lambda item: filter_info_post(item)))
+
+        # cargo sus fotos y likes
+        photos_post = Photo_post.query.filter(id=posterExistF["id"]).all()
+        photos_f = list(map(lambda item: item.serialize(),photos_post))
+        # cargamos los likes y comentarios
+        likes_post = Like_Post.query.filter_by(id_post=posterExistF["id"]).all()
+
+        likesPost = None
+        def filter_infoUser(it):
+            item = it.serialize()
+            infoUser = User.query.filter_by(id=item["id_user"]).first()
+            if infoUser == None:
+                return "user no exist"
+            infF = infoUser.serialize()
+            return {    
+                "id":infF["id"],
+                "nombre":infF["nombre"],
+                "apellido":infF["apellido"],
+                "photo":infF["photo"],
+            }
+        if(len(likes_post) == 0 ):
+            likesPost = 0
+        else:
+            likes = list(map(lambda item: filter_infoUser(item)))
+        
+        
+
+        
+        return jsonify({"ok":True,"msg":"estos son tus posts:"})

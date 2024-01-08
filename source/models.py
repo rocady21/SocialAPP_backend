@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 
-
 db = SQLAlchemy()
 
 
@@ -153,7 +152,6 @@ class Seguidor(db.Model):
 
     
 class Post(db.Model): 
-
     id = db.Column(db.Integer, primary_key=True)
     id_user = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     descripcion = db.Column(db.String(500), nullable = True)
@@ -174,42 +172,64 @@ class Post(db.Model):
         "descripcion":self.descripcion ,
         "fecha":self.fecha 
         }
+    
+class Like_Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    id_user = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    id_post = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+
+    def __init__ (self,id_user,id_post):
+        self.id_user = id_user,
+        self.id_post = id_post,
+
+
+    def serialize(self):
+        return {
+        "id":self.id,
+        "id_user":self.id_user,
+        "id_post":self.id_post ,
+        }
+
+class Comentario_Post(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    id_user = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    id_post = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
+    comentario = db.Column(db.String(1000),nullable = False)
+    fecha_comentario = db.Column(db.String(1000),nullable = False)
+
+    def __init__ (self,id_user,id_post,comentario,fecha_comentario):
+        self.id_user = id_user,
+        self.id_post = id_post,
+        self.comentario = comentario,
+        self.fecha_comentario = fecha_comentario,
+
+
+    def serialize(self):
+        return {
+        "id":self.id,
+        "id_user":self.id_user,
+        "id_post":self.id_post ,
+        "comentario":self.comentario,
+        "fecha_comentario":self.fecha_comentario ,
+        }
 
 class Photo_post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     id_post = db.Column(db.Integer, db.ForeignKey('post.id'), nullable=False)
-    id_photo = db.Column(db.Integer, db.ForeignKey('photo.id'), nullable=False)
+    photo_url = db.Column(db.String(1000), nullable=False)
 
-    
-    def __init__ (self,id_post,id_photo):
+    def __init__ (self,id_post,photo_url):
         self.id_post = id_post,
-        self.id_photo = id_photo,
+        self.photo_url = photo_url,
 
 
     def serialize(self):
         return {
         "id":self.id,
         "id_post":self.id_post,
-        "id_photo":self.id_photo ,
+        "photo_url":self.photo_url ,
         }
 
-class Photo(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    url_photo = db.Column(db.String(500), nullable = True)
-
-    #relacion
-    photo_post = db.relationship('Photo_post', backref='photo', lazy=True)
-    
-    def __init__ (self,url_photo,):
-        self.url_photo = url_photo,
-
-
-    def serialize(self):
-        return {
-        "id":self.id,
-        "id_post":self.id_post,
-        "url_photo":self.url_photo ,
-        }
     
 class Chat(db.Model): 
 
