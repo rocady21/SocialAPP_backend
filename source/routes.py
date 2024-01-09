@@ -463,9 +463,27 @@ def init_routes(app):
         photos_f = list(map(lambda item: item.serialize(),photos_post))
         # cargamos los likes y comentarios
         likes_post = Like_Post.query.filter_by(id_post=posterExistF["id"]).all()
+        comments_post = Comentario_Post.query.filter(Comentario_Post.id_post == id_post).all()
 
+        def filter_info_comment(it):
+            item = it.serialize()
+            infoUser = User.query.filter_by(id=item["id_user"]).first()
+            infoF = infoUser.serialize()
+
+            dataResponse = {
+                "post_id":item["id_post"],
+                "user_id":infoF["id"],
+                "name":infoF["nombre"] + " " + infoF["apellido"],
+                "photo":infoF["foto"],
+                "id_comment":item["id"],
+                "comment":item["comentario"],
+                "date":item["fecha"]
+            }
+            return dataResponse
         
-        if len(likes_post) != 0:
+        comments_filter = list(map(lambda item: filter_info_comment(item),comments_post))
+        
+        if len(likes_post) != 0 :
             def filter_infoUser(it):
                 item = it.serialize()
                 infoUser = User.query.filter_by(id=item["id_user"]).first()
@@ -485,17 +503,21 @@ def init_routes(app):
                 "infoPost":posterExistF,
                 "photos":photos_f,
                 "likes":len(info_likes),
-                "info_likes": info_likes
+                "info_likes": info_likes,
+                "comments": 0 if len(comments_post) == 0 else len(comments_filter),
+                "info_comments": None if len(comments_post) == 0 else comments_filter
             }})
 
 
-        # falta cargar comentarios
+        # comentarios
+        
         
         
         return jsonify({"ok":True,"msg":"este es el post","data":{
             "infoPost":posterExistF,
             "photos":photos_f,
-            "likes":0
+            "likes":0,
+            "comments":0
         }})
     
     # posts de un usuario 
@@ -514,6 +536,25 @@ def init_routes(app):
             # cargamos los likes y comentarios
             likes_post = Like_Post.query.filter_by(id_post=itmeF["id"]).all()
 
+            comments_post = Comentario_Post.query.filter(Comentario_Post.id_post == itmeF["id"]).all()
+
+            def filter_info_comment(it):
+                item = it.serialize()
+                infoUser = User.query.filter_by(id=item["id_user"]).first()
+                infoF = infoUser.serialize()
+
+                dataResponse = {
+                    "post_id":item["id_post"],
+                    "user_id":infoF["id"],
+                    "name":infoF["nombre"] + " " + infoF["apellido"],
+                    "photo":infoF["foto"],
+                    "id_comment":item["id"],
+                    "comment":item["comentario"],
+                    "date":item["fecha"]
+                }
+                return dataResponse
+        
+            comments_filter = list(map(lambda item: filter_info_comment(item),comments_post))    
             def filter_infoUser(it):
                 item = it.serialize()
                 infoUser = User.query.filter_by(id=item["id_user"]).first()
@@ -531,10 +572,12 @@ def init_routes(app):
 
 
             return{
-                "post_info":itmeF,
+                "infoPost":itmeF,
                 "likes":len(likes),
-                "info_users_like": likes,
-                "photos_url":photos_f
+                "info_likes": likes,
+                "photos":photos_f,
+                "comments": 0 if len(comments_post) == 0 else len(comments_filter),
+                "info_comments": None if len(comments_post) == 0 else comments_filter
             }
             
 
@@ -572,3 +615,31 @@ def init_routes(app):
         db.session.commit()
 
         return jsonify({"ok":True,"msg":"like quitado correctamente"})
+    # Añadir comentario
+    @app.route("/api/post/comment", methods=["POST"])
+    def UserAddComentPost():
+        data = request.json()
+
+        AddComent = Comentario_Post(
+            id_user = data["id_user"],
+            id_post = data["id_post"],
+            comentario = data["comentario"],
+            fecha_comentario = data["fecha_comentario"]
+        )
+        db.session.add(AddComent)
+        db.session.commit()
+        return jsonify({"ok":True,"msg":"comentario insertado correctamente"}),200
+    # borrar comentario
+    @app.route("/api/post/comment/<int:id_comment>", methods=["DELETE"])
+    def UserAddComentPost(id_comment):
+        
+        comentarioExist = Comentario_Post.query.filter_by(id=id_comment).first()
+
+        if comentarioExist == None:
+            return jsonify({"ok":False,"msg":"el comentario con ese id no existe"}),400
+        
+
+
+        db.session.delete(comentarioExist)
+        db.session.commit()
+        return jsonify({"ok":True,"msg":"comentario eliminado correctamente"}),200
