@@ -2,15 +2,24 @@ from flask import Flask,request,jsonify
 from flask_marshmallow import Marshmallow
 from flask import Flask
 from flask_cors import CORS
-from models import db 
 from flask_jwt_extended import create_access_token
 from flask_migrate import Migrate
+from sockets_routes import socket_io
+from models import db
+
 
 app = Flask(__name__)
-CORS(app)
-migrate = Migrate(app, db)
+CORS(app,origins="*")
+socket_io.init_app(app)
+
+
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://Rodrigo:oliverman12@localhost/socialapp"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config['SECRET_KEY'] = 'secret!'
+migrate = Migrate(app, db)
+
+# socket io recibe el app y los cors
+
 
 
 # aqui lo que hago es decirle que la base de dato inisialice con app
@@ -19,18 +28,15 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 ma = Marshmallow(app)
 db.init_app(app)
 
-
-
-
 def init_route():
     from routes import init_routes
     init_routes(app)
 
 
-init_route()
-
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    init_route()
+    # el host 0.0.0.0 hace que cualquiera pueda iniciar e contectarse al mismo
+    socket_io.run(app,host="0.0.0.0",port=5000)
 
 
