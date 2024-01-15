@@ -536,8 +536,9 @@ def init_routes(app):
         def filter_info_post(item): 
             itmeF = item.serialize()
             # cargo sus fotos y likes
-            photos_post = Photo_post.query.filter_by(id=itmeF["id"]).all()
+            photos_post = Photo_post.query.filter_by(id_post=itmeF["id"]).all()
             photos_f = list(map(lambda item: item.serialize(),photos_post))
+            
             # cargamos los likes y comentarios
             likes_post = Like_Post.query.filter_by(id_post=itmeF["id"]).all()
 
