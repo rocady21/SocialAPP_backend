@@ -526,13 +526,19 @@ def init_routes(app):
         posterExist = Post.query.filter_by(id_user=id_user).all()
         if len(posterExist) == 0:
             return jsonify({"ok":False,"msg":"este usuario no tiene ningun post"}),200
-        
+        userPosted = User.query.filter_by(id=id_user).first()
+
+        if userPosted == None:
+            return jsonify({"ok":False,"msg":"no existe el usuario"}),400
+        userPostedF = userPosted.serialize()
+        user_info_response = {key: value for key, value in userPostedF.items() if key not in ['correo', 'contraseña','edad','presentacion']}
         # filtro info de cada post
         def filter_info_post(item): 
             itmeF = item.serialize()
             # cargo sus fotos y likes
-            photos_post = Photo_post.query.filter_by(id=itmeF["id"]).all()
+            photos_post = Photo_post.query.filter_by(id_post=itmeF["id"]).all()
             photos_f = list(map(lambda item: item.serialize(),photos_post))
+            
             # cargamos los likes y comentarios
             likes_post = Like_Post.query.filter_by(id_post=itmeF["id"]).all()
 
@@ -553,7 +559,7 @@ def init_routes(app):
                     "date":item["fecha"]
                 }
                 return dataResponse
-        
+
             comments_filter = list(map(lambda item: filter_info_comment(item),comments_post))    
             def filter_infoUser(it):
                 item = it.serialize()
@@ -572,10 +578,12 @@ def init_routes(app):
 
 
             return{
+                "id":itmeF["id"],
                 "infoPost":itmeF,
                 "likes":len(likes),
                 "info_likes": likes,
                 "photos":photos_f,
+                "user_posted_info":user_info_response,
                 "comments": 0 if len(comments_post) == 0 else len(comments_filter),
                 "info_comments": None if len(comments_post) == 0 else comments_filter
             }
@@ -631,7 +639,7 @@ def init_routes(app):
         return jsonify({"ok":True,"msg":"comentario insertado correctamente"}),200
     # borrar comentario
     @app.route("/api/post/comment/<int:id_comment>", methods=["DELETE"])
-    def UserAddComentPost(id_comment):
+    def UserQuitComentPost(id_comment):
         
         comentarioExist = Comentario_Post.query.filter_by(id=id_comment).first()
 
