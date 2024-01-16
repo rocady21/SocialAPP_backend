@@ -600,6 +600,13 @@ def init_routes(app):
         id_user = requestF["id_user"]
         id_post = requestF["id_post"]
 
+
+        LikeExist = Like_Post.query.filter((Like_Post.id_user == id_user) & (Like_Post.id_post == id_post)).first()
+
+        if LikeExist:
+            return jsonify({"ok":False,"msg":"No puedes dar 2 likes"}),400
+
+
         Newlike = Like_Post(
             id_user=id_user,
             id_post=id_post
@@ -618,6 +625,9 @@ def init_routes(app):
         id_post = requestF["id_post"]
 
         LikeExist = Like_Post.query.filter((Like_Post.id_user == id_user) & (Like_Post.id_post == id_post)).first()
+
+        if LikeExist == None:
+            return jsonify({"ok":False,"msg":"Error, el like no existe"}),400
 
         db.session.delete(LikeExist)
         db.session.commit()
