@@ -70,6 +70,8 @@ def init_routes(app):
         if userExistF["correo"] == email and password_compare == True:
             # generar token
             access_token = create_access_token(identity=email)
+            # cargar amigos
+
             return jsonify({"ok":True,"data":userExistF,"token":access_token}),200
         return jsonify({"ok":False,"msg":"Error, contraseña incorrecta"}),401 
 
@@ -128,17 +130,56 @@ def init_routes(app):
         id_user_seguidor = data["id_user_seguidor"]
         id_user_seguid = data["id_user_seguido"]
         # chequeamos que no haya ningun seguimiento entre ambos 
-        seguimiento_exist = Seguidor.query.filter_by(id_user_seguidor=1).first()
+        seguimiento_exist = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_seguidor) | (Seguidor.id_usuario_seguido == id_user_seguid)).first()
 
         if seguimiento_exist == None:
-            return "Coso"
+            now = datetime.now()
+            newRequest = Seguidor(
+                        id_user_seguidor=id_user_seguidor,
+                        id_usuario_seguido=id_user_seguid,
+                        fecha_inicio=now,
+                        id_estado = 1
+                        )
+            
+            db.session.add(newRequest),
+            db.session.commit()
+            return jsonify({
+                "ok":True,
+                "msg":"Solicitud enviada con exito" 
+            }),200
+            
         return jsonify({
             "ok":True,
-            "msg":"Solicitud enviada a " 
+            "msg":"ya hay una solicitud pendiente" 
 
         }),200
             
         
+    # ruta para filtrar user por nombre
+
+    @app.route("/api/user/<string:nombre_user>",methods = ["GET"])
+    def Filter_user_By_name(nombre_user):
+
+        user_filter = User.query.filter(User.nombre.contains(nombre_user)).all()
+        if len(user_filter) == 0: 
+            return jsonify({"ok":False,"msg":"No hay usuario con ese nombre"}),400
+        
+        def filter_info_user(it):
+            item = it.serialize()
+            seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == item["id"]).all()
+
+            return {
+                "id":item["id"],
+                "nombre" : item["nombre"],
+                "apellido" : item["apellido"],
+                "edad" : item["edad"],
+                "correo" : item["correo"],
+                "photo": item["foto"],
+                "seguidores":len(seguidores_user)
+            }
+        user_map = list(map(lambda item: filter_info_user(item),user_filter))
+        return jsonify({"ok":True,"result":user_map}),200
+
     # ruta para traer solicitudes de seguimiento de un usuario
     @app.route("/api/request_friends/<int:id_user>",methods= ["GET"])
     def get_request_friends(id_user):
@@ -146,19 +187,19 @@ def init_routes(app):
         if user == None:
             return jsonify({"ok":False,"msg":"Error, no hay ningun usuario con ese id"}),400
         # buscamos todos los seguidores en estado pendiente
-        request_friend = Seguidor.query.filter(Seguidor.id_usuario_seguido == id_user and Seguidor.id_estado == 1)
-        if request_friend == None:
+        request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == id_user) & (Seguidor.id_estado == 1)).all()
+        if len(request_friend) == 0 :
             return jsonify({"ok":True,"msg":"No tienes ninguan solicitud de amistad"}),200
         
         def filter_userInfo(it):
             item = it.serialize()
-            userInfo = User.query.filter_by(id=item.id_user_seguidor)
-            
+            userInfo = User.query.filter_by(id=item["id_user_seguidor"]).first()
+            userInfoF = userInfo.serialize()
             return {
-                "id":userInfo["id"],
-                "nombre":userInfo["nombre"],
-                "apellido":userInfo["apellido"],
-                "foto":userInfo["foto"]
+                "id":userInfoF["id"],
+                "nombre":userInfoF["nombre"],
+                "apellido":userInfoF["apellido"],
+                "foto":userInfoF["foto"]
             }
 
         request_f_F = list(map(lambda item: filter_userInfo(item),request_friend))
@@ -178,13 +219,14 @@ def init_routes(app):
         me = data["id_user_seguido"]
         friend_request = Seguidor.query.filter(Seguidor.id_user_seguidor == user_seguidor and Seguidor.id_usuario_seguido == me).first()
         # Aceptamos la solicitud
+        if friend_request == None:
+            return jsonify({"ok":False,"msg":"no existe solicitud de seguimiento"}),400
         friend_request.id_estado = 2
 
         db.session.add(friend_request)
         db.session.commit()
 
         return jsonify({"ok":True,"msg":"Solicitud de amistad aceptada"})
-        return
     # ruta para rechazar solicitud de seguimiento
     @app.route("/api/reject_request_friend",methods= ["DELETE"])
     def get_reject_request_friend():
@@ -198,21 +240,21 @@ def init_routes(app):
 
         return jsonify({"ok":True,"msg":"Solicitud de amistad aceptada"})
 
-       # traer todos los amigos de un usuario    
-    @app.route("/api/friends/<int:id_user>",methods= ["GET"])
-    def get_friends_user(id_user):
-        user = User.query.filter_by(id_user=id).first()
+       # traer todas las personas a las que sigo 
+    @app.route("/api/following/<int:id_user>",methods= ["GET"])
+    def get_following_user(id_user):
+        user = User.query.filter_by(id=id_user).first()
         if user == None:
             return jsonify({"ok":False,"msg":"Error, no hay ningun usuario con ese id"}),400
         # buscamos todos los amigos de este usuario
-        friends = Seguidor.query.filter(Seguidor.id_user_seguidor == id ).all()
+        friends = Seguidor.query.filter_by(id_user_seguidor=id_user).all()
 
         if len(friends) == 0:
             return jsonify({"ok":False,"msg":"No tienens ningun amigo"}),400
 
         def filter_amigos(it):
             item = it.serialize()
-            user = User.query.filter_by(id=item["id_usuario_seguido"])
+            user = User.query.filter_by(id=item["id_usuario_seguido"]).first()
             userF = user.serialize()
             return {
                 "id":userF["id"],
@@ -222,8 +264,35 @@ def init_routes(app):
                   
             }
         
-        amigos_f = list(map(lambda item: filter_amigos(item)))
+        amigos_f = list(map(lambda item: filter_amigos(item),friends))
         return jsonify({"ok":True,"msg":"estos son tus amigos","amigos":amigos_f}),200
+    # api para traer personas que me siguen 
+    @app.route("/api/follower/<int:id_user>",methods= ["GET"])
+    def get_follower_user(id_user):
+        user = User.query.filter_by(id=id_user).first()
+        if user == None:
+            return jsonify({"ok":False,"msg":"Error, no hay ningun usuario con ese id"}),400
+        # buscamos todos los amigos de este usuario
+        friends = Seguidor.query.filter_by(id_usuario_seguido=id_user).all()
+
+        if len(friends) == 0:
+            return jsonify({"ok":False,"msg":"No tienens ningun amigo"}),400
+
+        def filter_amigos(it):
+            item = it.serialize()
+            user = User.query.filter_by(id=item["id_user_seguidor"]).first()
+            userF = user.serialize()
+            return {
+                "id":userF["id"],
+                "foto":userF["foto"],
+                "nombre":userF["nombre"],
+                "apellido":userF["apellido"]
+                  
+            }
+        
+        amigos_f = list(map(lambda item: filter_amigos(item),friends))
+        return jsonify({"ok":True,"msg":"estos son tus amigos","amigos":amigos_f}),200
+
     
     # Ruta para enviar un mensaje a un usuario 
     @app.route("/api/messages/send",methods= ["POST"])
@@ -556,7 +625,7 @@ def init_routes(app):
                     "photo":infoF["foto"],
                     "id_comment":item["id"],
                     "comment":item["comentario"],
-                    "date":item["fecha"]
+                    "date":item["fecha_comentario"]
                 }
                 return dataResponse
 
@@ -600,6 +669,13 @@ def init_routes(app):
         id_user = requestF["id_user"]
         id_post = requestF["id_post"]
 
+
+        LikeExist = Like_Post.query.filter((Like_Post.id_user == id_user) & (Like_Post.id_post == id_post)).first()
+
+        if LikeExist:
+            return jsonify({"ok":False,"msg":"No puedes dar 2 likes"}),400
+
+
         Newlike = Like_Post(
             id_user=id_user,
             id_post=id_post
@@ -619,6 +695,9 @@ def init_routes(app):
 
         LikeExist = Like_Post.query.filter((Like_Post.id_user == id_user) & (Like_Post.id_post == id_post)).first()
 
+        if LikeExist == None:
+            return jsonify({"ok":False,"msg":"Error, el like no existe"}),400
+
         db.session.delete(LikeExist)
         db.session.commit()
 
@@ -626,7 +705,7 @@ def init_routes(app):
     # Añadir comentario
     @app.route("/api/post/comment", methods=["POST"])
     def UserAddComentPost():
-        data = request.json()
+        data = request.json
 
         AddComent = Comentario_Post(
             id_user = data["id_user"],
