@@ -155,6 +155,31 @@ def init_routes(app):
         }),200
             
         
+    # ruta para filtrar user por nombre
+
+    @app.route("/api/user/<string:nombre_user>",methods = ["GET"])
+    def Filter_user_By_name(nombre_user):
+
+        user_filter = User.query.filter(User.nombre.contains(nombre_user)).all()
+        if len(user_filter) == 0: 
+            return jsonify({"ok":False,"msg":"No hay usuario con ese nombre"}),400
+        
+        def filter_info_user(it):
+            item = it.serialize()
+            seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == item["id"]).all()
+
+            return {
+                "id":item["id"],
+                "nombre" : item["nombre"],
+                "apellido" : item["apellido"],
+                "edad" : item["edad"],
+                "correo" : item["correo"],
+                "photo": item["foto"],
+                "seguidores":len(seguidores_user)
+            }
+        user_map = list(map(lambda item: filter_info_user(item),user_filter))
+        return jsonify({"ok":True,"result":user_map}),200
+
     # ruta para traer solicitudes de seguimiento de un usuario
     @app.route("/api/request_friends/<int:id_user>",methods= ["GET"])
     def get_request_friends(id_user):
