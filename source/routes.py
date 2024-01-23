@@ -7,6 +7,8 @@ from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import JWTManager
 from sockets_routes import socket_io
+from sqlalchemy import asc,desc
+from datetime import timedelta
 
 
 
@@ -15,7 +17,8 @@ def init_routes(app):
     # inicializamos bcrypt
     bcrypt = Bcrypt(app)
 
-    app.config["JWT_SECRET_KEY"] = "super-secret_pal4br4SecReTaa4"  # Change this!
+    app.config["JWT_SECRET_KEY"] = "super-secret_pal4br4SecReTaa4" 
+    app.config['JWT_EXPIRATION_DELTA'] = timedelta(minutes=1)
     jwt = JWTManager(app)
 
     # Login
@@ -70,9 +73,16 @@ def init_routes(app):
         if userExistF["correo"] == email and password_compare == True:
             # generar token
             access_token = create_access_token(identity=email)
-            # cargar amigos
-
-            return jsonify({"ok":True,"data":userExistF,"token":access_token}),200
+            # cargar seguidores y seguidos
+            seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userExistF["id"]).all()
+            seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userExistF["id"]).all()
+            number_posts = Post.query.filter(Post.id_user == userExistF["id"]).all()
+            return jsonify({"ok":True,"data":{
+                "number_posts":len(number_posts),
+                "seguidores":len(seguidores_user),
+                "seguidos_user":len(seguidos_user),
+                **userExistF,
+            },"token":access_token}),200
         return jsonify({"ok":False,"msg":"Error, contraseña incorrecta"}),401 
 
     # jwt_required te devulelve lo que queramos si el token es valido, sino devolvera 404
@@ -82,7 +92,16 @@ def init_routes(app):
         current_user = get_jwt_identity()
         user = User.query.filter(User.correo==current_user).first()
         userf = user.serialize()
-        return jsonify({"isLogged": True,"user":userf,}), 200
+
+        seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userf["id"]).all()
+        seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userf["id"]).all()
+        number_posts = Post.query.filter(Post.id_user == userf["id"]).all()
+        return jsonify({"isLogged": True,"user":{
+            **userf,
+            "seguidores":len(seguidores_user),
+            "seguidos_user":len(seguidos_user),
+            "number_posts":len(number_posts)
+        },}), 200
 
 
     # Ruta para traer personas menos a mi mismo
@@ -117,9 +136,18 @@ def init_routes(app):
 
         if user == None:
             return jsonify({"ok":False,"msg":"no hay usuario con ese id "}),400
-        
         userF = user.serialize()
-        return jsonify({"ok":True, "user":userF }),200
+
+        seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userF["id"]).all()
+        seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userF["id"]).all()
+        number_posts = Post.query.filter(Post.id_user == userF["id"]).all()
+
+        return jsonify({"ok":True, "user":{
+            **userF,
+            "seguidos_user":len(seguidos_user),
+            "number_posts":len(number_posts),
+            "seguidores_user":len(seguidores_user)
+        } }),200
         
 
     # Ruta para enviar solicitud de seguimiento    
@@ -416,10 +444,12 @@ def init_routes(app):
         
     
     # traer mensajes con alguien espesifico
-    @app.route("/api/messages/<int:id_chat>",methods= ["GET"])
+    @app.route("/api/messages/<int:id_chat>",methods= ["POST"])
     @jwt_required()
     def get_messages_user(id_chat):
-
+        data = request.json
+        ofSett = data["ofSett"]
+        numberOfMessages= data["numberOfMessages"]
         me = get_jwt_identity()
 
         chat = Chat.query.filter_by(id=id_chat).first()
@@ -429,7 +459,7 @@ def init_routes(app):
         if chat == None:
             return jsonify({"ok":False,"msg":"no hay mensajes"}),400
         # filtramos los mensajes del chat
-        msgs = Mensajes.query.filter_by(id_chat = id_chat).all()
+        msgs = Mensajes.query.filter_by(id_chat = id_chat).order_by(desc(Mensajes.id)).limit(numberOfMessages).offset(ofSett)
 
         def filter_messages(it):
             item = it.serialize()

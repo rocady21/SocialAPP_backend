@@ -7,7 +7,6 @@ from flask_migrate import Migrate
 from sockets_routes import socket_io
 from models import db
 
-
 app = Flask(__name__)
 CORS(app,origins="*")
 socket_io.init_app(app)
