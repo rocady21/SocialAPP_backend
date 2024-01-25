@@ -9,8 +9,8 @@ from flask_jwt_extended import JWTManager
 from sockets_routes import socket_io
 from sqlalchemy import asc,desc
 from datetime import timedelta
-
-
+from utils.getDaysDate import getDaysDate
+from utils.days_in_format import days_in_format
 
 # Rutas de usuario
 def init_routes(app):
@@ -402,6 +402,20 @@ def init_routes(app):
 
         return jsonify({"ok":True,"msg":"El pñrimer mensaje se envio correctamente"})
     
+    @app.route("/api/message/<int:id_message>",methods= ["DELETE"])
+    def DeleteMesage(id_message):
+
+        MessageExist = Mensajes.query.filter_by(id = id_message).first()
+
+        if MessageExist == None:
+            return jsonify({"ok":False, "msg":"No existe el mensaje"}),400
+
+        db.session.delete(MessageExist)
+        db.session.commit()
+
+        return jsonify({"ok":True,"msg":"El mensaje se borro correctamente"}),200
+
+
     
     # traer todos los chats 
     @app.route("/api/chats/<int:id>",methods= ["GET"])
@@ -460,11 +474,32 @@ def init_routes(app):
             return jsonify({"ok":False,"msg":"no hay mensajes"}),400
         # filtramos los mensajes del chat
         msgs = Mensajes.query.filter_by(id_chat = id_chat).order_by(desc(Mensajes.id)).limit(numberOfMessages).offset(ofSett)
+        
 
-        def filter_messages(it):
+        list_days = []
+
+        def separe_in_days(it):
             item = it.serialize()
-            is_me = None
+            date_fromat = getDaysDate(item["fecha"])                 
+            
+            for element in list_days:
+                if element["day"] == date_fromat:
+                    # Si existe, agregar el mensaje al día existente
+                    element["messages"].append(item)
+                    break
+            else:
+                obj = {
+                    "day": date_fromat,
+                    "messages": [item]
+                }
+                list_days.append(obj)
 
+        msgsF = list(map(lambda item: separe_in_days(item),msgs))
+
+        def filter_messages(item):
+            is_me = None
+            date_fromat = getDaysDate(item["fecha"])
+            
             if item["id_user"] == user_meF["id"]:
                 is_me = True
                 
@@ -476,7 +511,8 @@ def init_routes(app):
                 "mensaje":item["mensaje"],
                 "foto":user_meF["foto"],
                 "nombre":user_meF["nombre"] + " " + user_meF["apellido"],
-                "is_me":is_me
+                "is_me":is_me,
+                "date_fromat": date_fromat
                 }
             else:
                 is_me= False
@@ -491,14 +527,34 @@ def init_routes(app):
                 "mensaje":item["mensaje"],
                 "foto":info_UserF["foto"],
                 "nombre":info_UserF["nombre"] + " " + info_UserF["apellido"],
-                "is_me": is_me
+                "is_me": is_me,
+                "date_fromat": date_fromat
                 }
 
+        
+        def filter_days(it):
+            
+            messages_format_f = list(map(lambda item: filter_messages(item),it["messages"]))
+            messages_format_f.reverse()
+            it["messages"] = messages_format_f
+
+            past_days = days_in_format(it["day"])
+
+            fecha_str = it["messages"][0]["fecha"]
+            fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S.%f").date()
+
+            past_daysF = past_days if past_days != 0 else datetime.strftime(fecha_obj, "%Y-%m-%d")
+            
+            it["day"] = past_daysF
+            return it
+
+        result_f = list(map(lambda item: filter_days(item),list_days))
+
+        result_f.reverse()
 
 
 
-        msgsF = list(map(lambda item: filter_messages(item),msgs))
-        return jsonify({"ok":True,"messages":msgsF,}),200
+        return jsonify({"ok":True,"messages":result_f,}),200
         
 # Rutas para post
     # Api para crear un nuevo post
