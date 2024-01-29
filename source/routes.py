@@ -77,11 +77,15 @@ def init_routes(app):
             seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userExistF["id"]).all()
             seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userExistF["id"]).all()
             number_posts = Post.query.filter(Post.id_user == userExistF["id"]).all()
+            request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == userExistF["id"]) & (Seguidor.id_estado == 1)).all()
+
             return jsonify({"ok":True,"data":{
                 "number_posts":len(number_posts),
                 "seguidores":len(seguidores_user),
                 "seguidos_user":len(seguidos_user),
+                "exist_friend_request": False if len(request_friend) == 0 else True,
                 **userExistF,
+
             },"token":access_token}),200
         return jsonify({"ok":False,"msg":"Error, contraseña incorrecta"}),401 
 
@@ -96,8 +100,11 @@ def init_routes(app):
         seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userf["id"]).all()
         seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userf["id"]).all()
         number_posts = Post.query.filter(Post.id_user == userf["id"]).all()
+        request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == userf["id"]) & (Seguidor.id_estado == 1)).all()
+
         return jsonify({"isLogged": True,"user":{
             **userf,
+            "exist_friend_request": False if len(request_friend) == 0 else True,
             "seguidores":len(seguidores_user),
             "seguidos_user":len(seguidos_user),
             "number_posts":len(number_posts)
@@ -211,13 +218,13 @@ def init_routes(app):
     # ruta para traer solicitudes de seguimiento de un usuario
     @app.route("/api/request_friends/<int:id_user>",methods= ["GET"])
     def get_request_friends(id_user):
-        user = User.query.filter_by(id=id_user)
+        user = User.query.filter_by(id=id_user).first()
         if user == None:
             return jsonify({"ok":False,"msg":"Error, no hay ningun usuario con ese id"}),400
         # buscamos todos los seguidores en estado pendiente
         request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == id_user) & (Seguidor.id_estado == 1)).all()
         if len(request_friend) == 0 :
-            return jsonify({"ok":True,"msg":"No tienes ninguan solicitud de amistad"}),200
+            return jsonify({"ok":False,"msg":"No tienes ninguan solicitud de amistad"}),400
         
         def filter_userInfo(it):
             item = it.serialize()
@@ -402,13 +409,15 @@ def init_routes(app):
 
         return jsonify({"ok":True,"msg":"El pñrimer mensaje se envio correctamente"})
     
-    @app.route("/api/message/<int:id_message>",methods= ["DELETE"])
+    @app.route("/api/messages/<int:id_message>",methods= ["DELETE"])
     def DeleteMesage(id_message):
 
         MessageExist = Mensajes.query.filter_by(id = id_message).first()
 
         if MessageExist == None:
             return jsonify({"ok":False, "msg":"No existe el mensaje"}),400
+
+
 
         db.session.delete(MessageExist)
         db.session.commit()
