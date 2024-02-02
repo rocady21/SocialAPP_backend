@@ -237,9 +237,9 @@ class Chat(db.Model):
     id_user_from = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     id_user_to = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     fecha_inicio = db.Column(db.String(50), nullable=False)
-    last_message = db.Column(db.String(50), nullable=False)
+    last_message = db.Column(db.String(50), nullable=True)
     id_user_last_message = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-    date_last_message = db.Column(db.String(50), nullable=False)
+    date_last_message = db.Column(db.String(50), nullable=True)
 
     # relación 
     mensaje = db.relationship('Mensajes', backref='chat', lazy=True)

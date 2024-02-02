@@ -136,9 +136,11 @@ def init_routes(app):
         return jsonify({"ok":True, "users":result }),200
     
     # Ruta para traer persona en espesifico
-    @app.route("/api/people/<int:id_user>",methods= ["GET"])
+    @app.route("/api/people/<int:id_user>",methods= ["POST"])
     def get_people_spesifique(id_user):
         
+        data = request.json
+        id_user_session = data["id_user_session"]
         user = User.query.filter_by(id=id_user).first()
 
         if user == None:
@@ -148,13 +150,62 @@ def init_routes(app):
         seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userF["id"]).all()
         seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userF["id"]).all()
         number_posts = Post.query.filter(Post.id_user == userF["id"]).all()
+        isFollower = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_session) & (Seguidor.id_usuario_seguido == id_user)).first()
+        chatExist = Chat.query.filter(((Chat.id_user_from == id_user_session) & (Chat.id_user_to == id_user)) | ((Chat.id_user_from == id_user) & (Chat.id_user_to == id_user_session))).first()
 
-        return jsonify({"ok":True, "user":{
-            **userF,
-            "seguidos_user":len(seguidos_user),
-            "number_posts":len(number_posts),
-            "seguidores_user":len(seguidores_user)
-        } }),200
+        if chatExist == None:
+            return jsonify({"ok":True, "user":{
+                **userF,
+                "seguidos_user":len(seguidos_user),
+                "number_posts":len(number_posts),
+                "seguidores_user":len(seguidores_user),
+                "isFollower": True if isFollower != None else False,
+                "chatExist": False
+            } }),200
+        else: 
+            print(chatExist)
+            chatExistF = chatExist.serialize()
+
+            is_me = False if chatExistF["id_user_from"] == id_user_session else True
+            
+            def Select_user_filterUser(chat):
+                if is_me == False:
+                    user_info = User.query.filter_by(id=chat["id_user_from"]).first()
+                    user_infoF = user_info.serialize()
+                    return {
+                    "id":chat["id"],
+                    "user_from":chat["id_user_from"],
+                    "user_to":chat["id_user_to"],
+                    "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
+                    "id_user_chat":user_infoF["id"],
+                    "photo":user_infoF["foto"],
+                    "time_last_message": chat["date_last_message"],
+                    "id_user_last_message":chat["id_user_last_message"]
+                }
+                else: 
+                    user_info = User.query.filter_by(id=chat["id_user_to"]).first()
+                    user_infoF = user_info.serialize()
+                    return             {
+                    "id":chat["id"],
+                    "user_from":chat["id_user_from"],
+                    "user_to":chat["id_user_to"],
+                    "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
+                    "id_user_chat":user_infoF["id"],
+                    "photo":user_infoF["foto"],
+                    "time_last_message": chat["date_last_message"],
+                    "id_user_last_message":chat["id_user_last_message"]
+                }
+            chat_selected = Select_user_filterUser(chatExistF)
+
+            return jsonify({"ok":True, "user":{
+                **userF,
+                "seguidos_user":len(seguidos_user),
+                "number_posts":len(number_posts),
+                "seguidores_user":len(seguidores_user),
+                "isFollower": True if isFollower != None else False,
+                "chatExist": chat_selected
+            } }),200 
+                
         
 
     # Ruta para enviar solicitud de seguimiento    
@@ -245,10 +296,10 @@ def init_routes(app):
             "friend_request":request_f_F
             })
 
-
     # ruta para aceptar solicitud de seguimiento
     @app.route("/api/accept_request_friend",methods= ["PUT"])
     def get_accept_request_friend():
+        
         data = request.json
         user_seguidor = data["id_user_seguidor"]
         me = data["id_user_seguido"]
@@ -261,13 +312,16 @@ def init_routes(app):
         db.session.add(friend_request)
         db.session.commit()
 
+        print("se accepto la solicitud de amistad")
+
         return jsonify({"ok":True,"msg":"Solicitud de amistad aceptada"})
     # ruta para rechazar solicitud de seguimiento
     @app.route("/api/reject_request_friend",methods= ["DELETE"])
     def get_reject_request_friend():
-        data = request.json
-        user_seguidor = data["id_user_seguidor"]
-        me = data["id_user_seguido"]
+
+        user_seguidor = request.args.get('param1')
+        me = request.args.get('param2')
+
         friend_request = Seguidor.query.filter(Seguidor.id_user_seguidor == user_seguidor and Seguidor.id_usuario_seguido == me).first()
         # Aceptamos la solicitud
         db.session.delete(friend_request)
@@ -334,7 +388,6 @@ def init_routes(app):
     def send_message():
         id_from = request.json["id_from"]
         id_to = request.json["id_to"]
-        mensaje= request.json["mensaje"]
 
 
         hoy = datetime.now()
@@ -345,7 +398,7 @@ def init_routes(app):
         # si el chat existe, voy a enviar un mensaje normalmente y insertar el last message
         if chatExist != None:
             chatExistF = chatExist.serialize()
-            chatExist.last_message = mensaje
+            chatExist.last_message = request.json["mensaje"]
             chatExist.date_last_message = hoy
             chatExist.id_user_last_message = id_from
 
@@ -355,7 +408,7 @@ def init_routes(app):
                 id_chat = chatExistF["id"],
                 id_user = id_from,
                 fecha = hoy,
-                mensaje = mensaje
+                mensaje = request.json["mensaje"]
             )
 
             db.session.add(newMessage,chatExist)
@@ -390,24 +443,30 @@ def init_routes(app):
             id_user_from = id_from,
             id_user_to = id_to,
             fecha_inicio = hoy,
-            last_message = mensaje,
-            date_last_message = hoy,
-            id_user_last_message = id_from
+            date_last_message = None,
+            last_message= None,
+            id_user_last_message = None
         )
         db.session.add(new_chat)
         db.session.commit()
 
-        # creamos el mensaje
-        new_message = Mensajes(
-            id_chat = new_chat.id,
-            id_user = id_from,
-            fecha = hoy,
-            mensaje = mensaje
-        )
-        db.session.add(new_message)
-        db.session.commit()
+        new_chatF = new_chat.serialize()
 
-        return jsonify({"ok":True,"msg":"El pñrimer mensaje se envio correctamente"})
+        user_infoSend = User.query.filter_by(id=id_to).first()
+        user_infoF = user_infoSend.serialize()
+
+        
+
+        return jsonify({"ok":True,"msg":"el chat se creo correctamente","data": {
+                "id":new_chatF["id"],
+                "user_from":new_chatF["id_user_from"],
+                "user_to":new_chatF["id_user_to"],
+                "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
+                "id_user_chat":user_infoF["id"],
+                "photo":user_infoF["foto"],
+                "time_last_message": new_chatF["date_last_message"],
+                "id_user_last_message":new_chatF["id_user_last_message"]
+            }})
     
     @app.route("/api/messages/<int:id_message>",methods= ["DELETE"])
     def DeleteMesage(id_message):
@@ -429,12 +488,14 @@ def init_routes(app):
     # traer todos los chats 
     @app.route("/api/chats/<int:id>",methods= ["GET"])
     def get_messages(id):
-        chats_user = Chat.query.filter((Chat.id_user_from == id) | (Chat.id_user_to == id)).all()
+        chats_user = Chat.query.filter(((Chat.id_user_from == id) | (Chat.id_user_to == id))).all()
         if len(chats_user) == 0:
             return jsonify({"ok":False,"msg":"No tienes ningun chat"}),200
+        
+
         def filtrar_info(it):
             item = it.serialize()
-            # condicional para cargar la info del usuario el cual inicio o le inicie el chat
+                # condicional para cargar la info del usuario el cual inicio o le inicie el chat
             id_user_search = None
             if(item["id_user_to"] == id):
                 id_user_search = item["id_user_from"]
@@ -446,23 +507,29 @@ def init_routes(app):
             if user_info == None:
                 return jsonify({"ok":False,"msg":"No se encontró el usuario"}),400
             user_infoF = user_info.serialize()
-        
-            return {
-                "id":item["id"],
-                "user_from":item["id_user_from"],
-                "user_to":item["id_user_to"],
-                "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
-                "last_message": item["last_message"],
-                "id_user_chat":user_infoF["id"],
-                "photo":user_infoF["foto"],
-                "time_last_message": item["date_last_message"],
-                "id_user_last_message":item["id_user_last_message"]
-            }
+            
+            if item["last_message"] is not None: 
+                return {
+                    "id":item["id"],
+                    "user_from":item["id_user_from"],
+                    "user_to":item["id_user_to"],
+                    "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
+                    "last_message": item["last_message"],
+                    "id_user_chat":user_infoF["id"],
+                    "photo":user_infoF["foto"],
+                    "time_last_message": item["date_last_message"],
+                    "id_user_last_message":item["id_user_last_message"]
+                }
+            else:
+                return None
 
         filter_chats_user = list(map(lambda item : filtrar_info(item),chats_user))
+        chats_filtrados = [chat for chat in filter_chats_user if chat is not None]
 
+        if not chats_filtrados:
+            return jsonify({"ok": False, "msg": "No hay mensajes disponibles"}), 200
 
-        return jsonify({"ok":True,"msg":"Estos son tus menajes","Chats":filter_chats_user})
+        return jsonify({"Chats": chats_filtrados, "msg": "Estos son tus mensajes", "ok": True})
 
         
     

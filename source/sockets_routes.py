@@ -1,6 +1,5 @@
-from flask_socketio import emit,send
+from flask_socketio import emit,send,SocketIO
 from flask import request
-from flask_socketio import SocketIO
 socket_io = SocketIO(cors_allowed_origins="*")
 
 @socket_io.on("connect")
