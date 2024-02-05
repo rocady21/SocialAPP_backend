@@ -1,5 +1,5 @@
 from flask import Flask,request,jsonify
-from models import db,User, Seguidor,Chat,Mensajes,Post,Photo_post,Like_Post,Comentario_Post
+from models import db,User, Seguidor,Chat,Mensajes,Post,Photo_post,Like_Post,Comentario_Post,Estado
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 from flask_jwt_extended import create_access_token
@@ -74,8 +74,8 @@ def init_routes(app):
             # generar token
             access_token = create_access_token(identity=email)
             # cargar seguidores y seguidos
-            seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userExistF["id"]).all()
-            seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userExistF["id"]).all()
+            seguidores_user = Seguidor.query.filter((Seguidor.id_usuario_seguido == userExistF["id"]) & Seguidor.id_estado == 2).all()
+            seguidos_user = Seguidor.query.filter((Seguidor.id_user_seguidor == userExistF["id"]) & Seguidor.id_estado == 2).all()
             number_posts = Post.query.filter(Post.id_user == userExistF["id"]).all()
             request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == userExistF["id"]) & (Seguidor.id_estado == 1)).all()
 
@@ -97,8 +97,8 @@ def init_routes(app):
         user = User.query.filter(User.correo==current_user).first()
         userf = user.serialize()
 
-        seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userf["id"]).all()
-        seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userf["id"]).all()
+        seguidores_user = Seguidor.query.filter((Seguidor.id_usuario_seguido == userF["id"]) & Seguidor.id_estado == 2).all()
+        seguidos_user = Seguidor.query.filter((Seguidor.id_user_seguidor == userf["id"]) & Seguidor.id_estado == 2).all()
         number_posts = Post.query.filter(Post.id_user == userf["id"]).all()
         request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == userf["id"]) & (Seguidor.id_estado == 1)).all()
 
@@ -147,64 +147,78 @@ def init_routes(app):
             return jsonify({"ok":False,"msg":"no hay usuario con ese id "}),400
         userF = user.serialize()
 
-        seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == userF["id"]).all()
-        seguidos_user = Seguidor.query.filter(Seguidor.id_user_seguidor == userF["id"]).all()
+        seguidores_user = Seguidor.query.filter((Seguidor.id_usuario_seguido == userF["id"]) & Seguidor.id_estado == 2).all()
+        seguidos_user = Seguidor.query.filter((Seguidor.id_user_seguidor == userF["id"]) & Seguidor.id_estado == 2).all()
         number_posts = Post.query.filter(Post.id_user == userF["id"]).all()
-        isFollower = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_session) & (Seguidor.id_usuario_seguido == id_user)).first()
+        isFollower = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_session) & (Seguidor.id_usuario_seguido == id_user) | (Seguidor.id_user_seguidor == id_user) & (Seguidor.id_usuario_seguido == id_user_session)).first()
         chatExist = Chat.query.filter(((Chat.id_user_from == id_user_session) & (Chat.id_user_to == id_user)) | ((Chat.id_user_from == id_user) & (Chat.id_user_to == id_user_session))).first()
 
         if chatExist == None:
-            return jsonify({"ok":True, "user":{
-                **userF,
-                "seguidos_user":len(seguidos_user),
-                "number_posts":len(number_posts),
-                "seguidores_user":len(seguidores_user),
-                "isFollower": True if isFollower != None else False,
-                "chatExist": False
-            } }),200
+
+            if isFollower != None:
+                isFollowerF = isFollower.serialize()
+                status_follower = Estado.query.filter_by(id=isFollowerF["id_estado"]).first().serialize()
+                print(status_follower)
+                return jsonify({"ok":True, "user":{
+                    **userF,
+                    "seguidos_user":len(seguidos_user),
+                    "number_posts":len(number_posts),
+                    "seguidores_user":len(seguidores_user),
+                    "isFollower": status_follower["nombre"],
+                    "chatExist": False
+                } }),200 
+            else:
+                return jsonify({"ok":True, "user":{
+                    **userF,
+                    "seguidos_user":len(seguidos_user),
+                    "number_posts":len(number_posts),
+                    "seguidores_user":len(seguidores_user),
+                    "isFollower": False,
+                    "chatExist": False
+                } }),200 
         else: 
             print(chatExist)
             chatExistF = chatExist.serialize()
 
-            is_me = False if chatExistF["id_user_from"] == id_user_session else True
+            user_chat = User.query.filter((User.id != id_user_session) & ((User.id == chatExistF["id_user_from"]) | (User.id == chatExistF["id_user_to"])) ).first().serialize()
             
-            def Select_user_filterUser(chat):
-                if is_me == False:
-                    user_info = User.query.filter_by(id=chat["id_user_from"]).first()
-                    user_infoF = user_info.serialize()
-                    return {
-                    "id":chat["id"],
-                    "user_from":chat["id_user_from"],
-                    "user_to":chat["id_user_to"],
-                    "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
-                    "id_user_chat":user_infoF["id"],
-                    "photo":user_infoF["foto"],
-                    "time_last_message": chat["date_last_message"],
-                    "id_user_last_message":chat["id_user_last_message"]
-                }
-                else: 
-                    user_info = User.query.filter_by(id=chat["id_user_to"]).first()
-                    user_infoF = user_info.serialize()
-                    return             {
-                    "id":chat["id"],
-                    "user_from":chat["id_user_from"],
-                    "user_to":chat["id_user_to"],
-                    "nombre_user": user_infoF["nombre"] + " " + user_infoF["apellido"],
-                    "id_user_chat":user_infoF["id"],
-                    "photo":user_infoF["foto"],
-                    "time_last_message": chat["date_last_message"],
-                    "id_user_last_message":chat["id_user_last_message"]
-                }
-            chat_selected = Select_user_filterUser(chatExistF)
+            date_format = {
+                    "id":chatExistF["id"],
+                    "user_from":chatExistF["id_user_from"],
+                    "user_to":chatExistF["id_user_to"],
+                    "nombre_user": user_chat["nombre"] + " " + user_chat["apellido"],
+                    "id_user_chat":user_chat["id"],
+                    "photo":user_chat["foto"],
+                    "time_last_message": chatExistF["date_last_message"],
+                    "id_user_last_message":chatExistF["id_user_last_message"]
+            }
 
-            return jsonify({"ok":True, "user":{
-                **userF,
-                "seguidos_user":len(seguidos_user),
-                "number_posts":len(number_posts),
-                "seguidores_user":len(seguidores_user),
-                "isFollower": True if isFollower != None else False,
-                "chatExist": chat_selected
-            } }),200 
+            MessageExist = Mensajes.query.filter(Mensajes.id_chat == chatExistF["id"]).all()
+
+            if isFollower != None:
+                isFollowerF = isFollower.serialize()
+                status_follower = Estado.query.filter_by(id=isFollowerF["id_estado"]).first().serialize()
+                print(status_follower)
+                return jsonify({"ok":True, "user":{
+                    **userF,
+                    "seguidos_user":len(seguidos_user),
+                    "number_posts":len(number_posts),
+                    "seguidores_user":len(seguidores_user),
+                    "isFollower": status_follower["nombre"],
+                    "chatExist": date_format,
+                    "messagesExist": len(MessageExist)
+                } }),200 
+            else:
+                return jsonify({"ok":True, "user":{
+                    **userF,
+                    "seguidos_user":len(seguidos_user),
+                    "number_posts":len(number_posts),
+                    "seguidores_user":len(seguidores_user),
+                    "isFollower": False,
+                    "chatExist": date_format,
+                    "messagesExist": len(MessageExist)
+                } }),200 
+
                 
         
 
@@ -216,7 +230,7 @@ def init_routes(app):
         id_user_seguidor = data["id_user_seguidor"]
         id_user_seguid = data["id_user_seguido"]
         # chequeamos que no haya ningun seguimiento entre ambos 
-        seguimiento_exist = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_seguidor) | (Seguidor.id_usuario_seguido == id_user_seguid)).first()
+        seguimiento_exist = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_seguidor) & (Seguidor.id_usuario_seguido == id_user_seguid) | (Seguidor.id_user_seguidor == id_user_seguid) & (Seguidor.id_usuario_seguido == id_user_seguidor)).first()
 
         if seguimiento_exist == None:
             now = datetime.now()
@@ -252,7 +266,8 @@ def init_routes(app):
         
         def filter_info_user(it):
             item = it.serialize()
-            seguidores_user = Seguidor.query.filter(Seguidor.id_usuario_seguido == item["id"]).all()
+            seguidores_user = Seguidor.query.filter((Seguidor.id_usuario_seguido == item["id"]) & Seguidor.id_estado == 2).all()
+       
 
             return {
                 "id":item["id"],
@@ -303,7 +318,7 @@ def init_routes(app):
         data = request.json
         user_seguidor = data["id_user_seguidor"]
         me = data["id_user_seguido"]
-        friend_request = Seguidor.query.filter(Seguidor.id_user_seguidor == user_seguidor and Seguidor.id_usuario_seguido == me).first()
+        friend_request = Seguidor.query.filter((Seguidor.id_user_seguidor == user_seguidor) & (Seguidor.id_usuario_seguido == me)).first()
         # Aceptamos la solicitud
         if friend_request == None:
             return jsonify({"ok":False,"msg":"no existe solicitud de seguimiento"}),400
@@ -322,12 +337,12 @@ def init_routes(app):
         user_seguidor = request.args.get('param1')
         me = request.args.get('param2')
 
-        friend_request = Seguidor.query.filter(Seguidor.id_user_seguidor == user_seguidor and Seguidor.id_usuario_seguido == me).first()
+        friend_request = Seguidor.query.filter((Seguidor.id_user_seguidor == user_seguidor) & (Seguidor.id_usuario_seguido == me)).first()
         # Aceptamos la solicitud
         db.session.delete(friend_request)
         db.session.commit()
 
-        return jsonify({"ok":True,"msg":"Solicitud de amistad aceptada"})
+        return jsonify({"ok":True,"msg":"Solicitud de amistad rechazada"})
 
        # traer todas las personas a las que sigo 
     @app.route("/api/following/<int:id_user>",methods= ["GET"])
@@ -468,6 +483,7 @@ def init_routes(app):
                 "id_user_last_message":new_chatF["id_user_last_message"]
             }})
     
+    # api para borrar un menasje
     @app.route("/api/messages/<int:id_message>",methods= ["DELETE"])
     def DeleteMesage(id_message):
 
@@ -482,7 +498,30 @@ def init_routes(app):
         db.session.commit()
 
         return jsonify({"ok":True,"msg":"El mensaje se borro correctamente"}),200
+    # APi para borrar un chat
+    @app.route("/api/chats/<int:id_chat>",methods= ["DELETE"])
+    def DeleteChat(id_chat):
 
+        chatExist = Chat.query.filter_by(id=id_chat).first()
+        if not chatExist:
+            return jsonify({"ok":False,"msg":"el chat seleccionado no existe"}),404
+        
+        # Buscamos los mensajes
+        chatExistF = chatExist.serialize()
+        messages_chat = Mensajes.query.filter_by(id_chat=chatExistF["id"]).all()
+
+        if len(messages_chat) == 0 :
+            db.session.delete(chatExist)
+            db.session.commit()
+            return jsonify({"ok":True,"msg":"El chat se elimio correctamente"}),200
+        else:
+            for item in messages_chat:
+                db.session.delete(item)
+                db.session.commit()
+
+            db.session.delete(chatExist)
+            db.session.commit()
+            return jsonify({"ok":True,"msg":"El chat se borro correctamente"}),200
 
     
     # traer todos los chats 
