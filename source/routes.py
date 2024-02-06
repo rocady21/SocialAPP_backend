@@ -182,6 +182,7 @@ def init_routes(app):
 
             user_chat = User.query.filter((User.id != id_user_session) & ((User.id == chatExistF["id_user_from"]) | (User.id == chatExistF["id_user_to"])) ).first().serialize()
             
+            
             date_format = {
                     "id":chatExistF["id"],
                     "user_from":chatExistF["id_user_from"],
@@ -193,31 +194,129 @@ def init_routes(app):
                     "id_user_last_message":chatExistF["id_user_last_message"]
             }
 
-            MessageExist = Mensajes.query.filter(Mensajes.id_chat == chatExistF["id"]).all()
 
-            if isFollower != None:
-                isFollowerF = isFollower.serialize()
-                status_follower = Estado.query.filter_by(id=isFollowerF["id_estado"]).first().serialize()
-                print(status_follower)
-                return jsonify({"ok":True, "user":{
-                    **userF,
-                    "seguidos_user":len(seguidos_user),
-                    "number_posts":len(number_posts),
-                    "seguidores_user":len(seguidores_user),
-                    "isFollower": status_follower["nombre"],
-                    "chatExist": date_format,
-                    "messagesExist": len(MessageExist)
-                } }),200 
+            last_ten_messages = Mensajes.query.filter(Mensajes.id_chat==chatExistF["id"]).order_by(desc(Mensajes.id)).offset(0).limit(10).all()
+
+            if len(last_ten_messages) != 0:
+                def filter_first_five_messages(it):
+                    item = it.serialize()
+                    date_fromat = getDaysDate(item["fecha"])
+                    if item["id_user"] == id_user_session:
+                        is_me = True
+                        user_info = User.query.filter_by(id=id_user_session).first().serialize()
+                        return {
+                        "id":item["id"],
+                        "fecha":item["fecha"],
+                        "chat":item["id_chat"],
+                        "usuario":item["id_user"],
+                        "mensaje":item["mensaje"],
+                        "foto":user_info["foto"],
+                        "nombre":user_info["nombre"] + " " + user_info["apellido"],
+                        "is_me":is_me,
+                        "date_fromat": date_fromat
+                        }
+                    else:
+                        is_me = False
+                        user_info = User.query.filter_by(id=item["id_user"]).first().serialize()
+                        return {
+                        "id":item["id"],
+                        "fecha":item["fecha"],
+                        "chat":item["id_chat"],
+                        "usuario":item["id_user"],
+                        "mensaje":item["mensaje"],
+                        "foto":user_info["foto"],
+                        "nombre":user_info["nombre"] + " " + user_info["apellido"],
+                        "is_me":is_me,
+                        "date_fromat": date_fromat
+                        }
+                result = list(map(lambda item:filter_first_five_messages(item),last_ten_messages))
+
+                
+                list_days = []
+
+                def separe_in_days(item):
+                        
+                    date_fromat = getDaysDate(item["fecha"])                 
+
+                    for element in list_days:
+                        if element["day"] == date_fromat:
+                            # Si existe, agregar el mensaje al día existente
+                            element["messages"].append(item)
+                            break
+                    else:
+                        obj = {
+                            "day": date_fromat,
+                            "messages": [item]
+                        }
+                        list_days.append(obj)
+                list(map(lambda item: separe_in_days(item),result))
+
+
+                def filter_days(it):
+                    past_days = days_in_format(it["day"])
+
+                    fecha_str = it["messages"][0]["fecha"]
+                    fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S.%f").date()
+
+                    past_daysF = past_days if past_days != 0 else datetime.strftime(fecha_obj, "%Y-%m-%d")
+                        
+                    it["day"] = past_daysF
+                    it["messages"].reverse()
+                    return it
+                result_messages_f = list(map(lambda item: filter_days(item),list_days))
+
+                if isFollower != None:
+                    isFollowerF = isFollower.serialize()
+                    status_follower = Estado.query.filter_by(id=isFollowerF["id_estado"]).first().serialize()
+
+                    return jsonify({"ok":True, "user":{
+                        **userF,
+                        "seguidos_user":len(seguidos_user),
+                        "number_posts":len(number_posts),
+                        "seguidores_user":len(seguidores_user),
+                        "isFollower": status_follower["nombre"],
+                        "chatExist": date_format,
+                        "messagesExist": len(last_ten_messages),
+                        "messages":result_messages_f
+                    } }),200 
+                else:
+                    return jsonify({"ok":True, "user":{
+                        **userF,
+                        "seguidos_user":len(seguidos_user),
+                        "number_posts":len(number_posts),
+                        "seguidores_user":len(seguidores_user),
+                        "isFollower": False,
+                        "chatExist": date_format,
+                        "messagesExist": len(last_ten_messages),
+                        "messages":result_messages_f
+                    } }),200 
+
             else:
-                return jsonify({"ok":True, "user":{
-                    **userF,
-                    "seguidos_user":len(seguidos_user),
-                    "number_posts":len(number_posts),
-                    "seguidores_user":len(seguidores_user),
-                    "isFollower": False,
-                    "chatExist": date_format,
-                    "messagesExist": len(MessageExist)
-                } }),200 
+                if isFollower != None:
+                    isFollowerF = isFollower.serialize()
+                    status_follower = Estado.query.filter_by(id=isFollowerF["id_estado"]).first().serialize()
+                    print(status_follower)
+                    return jsonify({"ok":True, "user":{
+                        **userF,
+                        "seguidos_user":len(seguidos_user),
+                        "number_posts":len(number_posts),
+                        "seguidores_user":len(seguidores_user),
+                        "isFollower": status_follower["nombre"],
+                        "chatExist": date_format,
+                        "messagesExist": len(last_ten_messages),
+                        "messages":[]
+                    } }),200 
+                else:
+                    return jsonify({"ok":True, "user":{
+                        **userF,
+                        "seguidos_user":len(seguidos_user),
+                        "number_posts":len(number_posts),
+                        "seguidores_user":len(seguidores_user),
+                        "isFollower": False,
+                        "chatExist": date_format,
+                        "messagesExist": len(last_ten_messages),
+                        "messages":[]
+                    } }),200 
 
                 
         
@@ -525,9 +624,14 @@ def init_routes(app):
 
     
     # traer todos los chats 
-    @app.route("/api/chats/<int:id>",methods= ["GET"])
+    @app.route("/api/chats/<int:id>",methods= ["POST"])
     def get_messages(id):
-        chats_user = Chat.query.filter(((Chat.id_user_from == id) | (Chat.id_user_to == id))).all()
+        request_body = request.json
+        limit = request_body["limit"]
+        index = request_body["index"]
+
+        chats_user = Chat.query.filter((Chat.id_user_from == id) | (Chat.id_user_to == id)).order_by(desc(Chat.id)).limit(limit).offset(index).all()
+
         if len(chats_user) == 0:
             return jsonify({"ok":False,"msg":"No tienes ningun chat"}),200
         
@@ -567,8 +671,93 @@ def init_routes(app):
 
         if not chats_filtrados:
             return jsonify({"ok": False, "msg": "No hay mensajes disponibles"}), 200
+        # cargamos los primeros 10 mensajes del chat si son los primeros contactos que traigo 
+        else:
+            def filter_first_five_messages(it):
+                item = it.serialize()
+                date_fromat = getDaysDate(item["fecha"])
+                if item["id_user"] == id:
+                    is_me = True
+                    user_info = User.query.filter_by(id=id).first().serialize()
+                    return {
+                    "id":item["id"],
+                    "fecha":item["fecha"],
+                    "chat":item["id_chat"],
+                    "usuario":item["id_user"],
+                    "mensaje":item["mensaje"],
+                    "foto":user_info["foto"],
+                    "nombre":user_info["nombre"] + " " + user_info["apellido"],
+                    "is_me":is_me,
+                    "date_fromat": date_fromat
+                    }
+                else:
+                    is_me = False
+                    user_info = User.query.filter_by(id=item["id_user"]).first().serialize()
+                    return {
+                    "id":item["id"],
+                    "fecha":item["fecha"],
+                    "chat":item["id_chat"],
+                    "usuario":item["id_user"],
+                    "mensaje":item["mensaje"],
+                    "foto":user_info["foto"],
+                    "nombre":user_info["nombre"] + " " + user_info["apellido"],
+                    "is_me":is_me,
+                    "date_fromat": date_fromat
+                    }
 
-        return jsonify({"Chats": chats_filtrados, "msg": "Estos son tus mensajes", "ok": True})
+
+            def addMessages(item): 
+                load_firsts_messages = Mensajes.query.filter(Mensajes.id_chat == item["id"]).order_by(desc(Mensajes.id)).limit(10).offset(0).all()
+                messages_filter = list(map(lambda item: filter_first_five_messages(item),load_firsts_messages))
+ 
+                list_days = []
+
+                def separe_in_days(item):
+                    
+                    date_fromat = getDaysDate(item["fecha"])                 
+
+                    for element in list_days:
+                        if element["day"] == date_fromat:
+                            # Si existe, agregar el mensaje al día existente
+                            element["messages"].append(item)
+                            break
+                    else:
+                        obj = {
+                            "day": date_fromat,
+                            "messages": [item]
+                        }
+                        list_days.append(obj)
+                list(map(lambda item: separe_in_days(item),messages_filter))
+                
+                def filter_days(it):
+
+                    past_days = days_in_format(it["day"])
+
+                    fecha_str = it["messages"][0]["fecha"]
+                    fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S.%f").date()
+
+                    past_daysF = past_days if past_days != 0 else datetime.strftime(fecha_obj, "%Y-%m-%d")
+                    
+                    it["day"] = past_daysF
+                    it["messages"].reverse()
+                    return it
+
+                result_f = list(map(lambda item: filter_days(item),list_days))
+
+                result_f.reverse()
+
+                return {
+                    **item,
+                    "firsts_messages":result_f
+                }
+
+            
+
+            add_five_messages = list(map(lambda item: addMessages(item),filter_chats_user))
+
+                
+            return jsonify({"Chats": add_five_messages, "msg": "Estos son tus mensajes", "ok": True})
+
 
         
     
@@ -609,7 +798,7 @@ def init_routes(app):
                 }
                 list_days.append(obj)
 
-        msgsF = list(map(lambda item: separe_in_days(item),msgs))
+        list(map(lambda item: separe_in_days(item),msgs))
 
         def filter_messages(item):
             is_me = None
