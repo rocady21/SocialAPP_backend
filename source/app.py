@@ -4,38 +4,51 @@ from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token
 from flask_migrate import Migrate
-from sockets_routes import socket_io
 from models import db
+from flask_socketio import SocketIO,emit
+from functions_routes.user import generate_bp
+from functions_routes.chat import generate_bp_chat
+from functions_routes.posts import generate_bp_post
+from socket_routes import socket_io
+from flask_jwt_extended import JWTManager
+from flask_bcrypt import Bcrypt
+from datetime import timedelta
+
 
 app = Flask(__name__)
-CORS(app,origins="*")
-socket_io.init_app(app)
-
-
+CORS(app, origins="*")
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://Rodrigo:oliverman12@localhost/socialapp"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config['SECRET_KEY'] = 'secret!'
-migrate = Migrate(app, db)
-
-# socket io recibe el app y los cors
 
 
-
-# aqui lo que hago es decirle que la base de dato inisialice con app
-# porque decidi crear los modelos en models y asi no generar una import circular
-# al tratar de importar db desde models y los modelos desde index
-ma = Marshmallow(app)
+# Inicializar la base de datos y migraciones
 db.init_app(app)
+migrate = Migrate(app, db)
+# Inicializo las rutas y blueprint
+jwt = JWTManager(app)
+app.config["JWT_SECRET_KEY"] = "super-secret_pal4br4SecReTaa4" 
+app.config['JWT_EXPIRATION_DELTA'] = timedelta(minutes=1)
+# Inicializar 
+user_bp = generate_bp()
+chat_bp = generate_bp_chat()
+post_bp = generate_bp_post()
 
-def init_route():
-    from routes import init_routes
-    init_routes(app)
+
+app.register_blueprint(user_bp)
+app.register_blueprint(chat_bp)
+app.register_blueprint(post_bp)
 
 
+
+
+socket_io.init_app(app)
 
 if __name__ == "__main__":
-    init_route()
-    # el host 0.0.0.0 hace que cualquiera pueda iniciar e contectarse al mismo
-    socket_io.run(app,host="0.0.0.0",port=5000)
+    # Ejecutar la aplicación Flask con SocketIO
+
+    socket_io.run(app,debug=True,host="0.0.0.0", port=4000)
+
+
 
 
