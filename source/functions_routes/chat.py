@@ -55,6 +55,12 @@ def generate_bp_chat():
             channel_name_chatRealTime ="chat_" + str(chatExistF["id_user_from"]) + "_and_" + str(chatExistF["id_user_to"])
             channel_name_ContactMessageRealTime = "user_id_" + str(chatExistF["id_user_to"])
             
+            # actualizo el estado de la visivilidad del ultimo mensaje a flase
+            chatExist.show_last_message = False
+
+            db.session.add(chatExist)
+            db.session.commit()
+
             format_response_message = {
                     "id":newMessageUsable["id"],
                     "fecha":newMessageUsable["fecha"],
@@ -64,12 +70,14 @@ def generate_bp_chat():
                     "foto":userSendMessageF["foto"],
                     "nombre":userSendMessageF["nombre"] + " " + userSendMessageF["apellido"]
                     }
-            
+            current_time_iso = hoy.isoformat()
+
+
 
 
             separe_day = {
                 "day":"hoy",
-                "messages":[format_response_message]
+                "messages":format_response_message
             }
             info_user_from = User.query.filter_by(id=chatExistF["id_user_from"]).first().serialize()
             format_contact_response = {
@@ -79,10 +87,11 @@ def generate_bp_chat():
                     "nombre_user": info_user_from["nombre"] + " " + info_user_from["apellido"],
                     "id_user_chat":info_user_from["id"],
                     "photo":info_user_from["foto"],
-                    "time_last_message": chatExistF["date_last_message"],
-                    "id_user_last_message":chatExistF["id_user_last_message"],
-                    "last_message":chatExistF["last_message"],
-                    "first_messages":separe_day
+                    "time_last_message": current_time_iso,
+                    "id_user_last_message":id_from,
+                    "last_message":request.json["mensaje"],
+                    "show_last_message":False,
+                    "firsts_messages":separe_day
             }
 
 
@@ -107,7 +116,8 @@ def generate_bp_chat():
                     fecha_inicio = hoy,
                     date_last_message = hoy,
                     last_message= msg,
-                    id_user_last_message = id_from
+                    id_user_last_message = id_from,
+                    show_last_message = True
                 )
                 db.session.add(new_chat)
                 db.session.commit()
@@ -136,7 +146,8 @@ def generate_bp_chat():
                     "photo":user_infoF["foto"],
                     "time_last_message": new_chatF["date_last_message"],
                     "id_user_last_message":new_chatF["id_user_last_message"],
-                    "last_message":new_chatF["last_message"]
+                    "last_message":new_chatF["last_message"],
+                    "show_last_message":new_chatF["show_last_message"]
                 }})
 
             else:
@@ -167,8 +178,16 @@ def generate_bp_chat():
                     "photo":user_infoF["foto"],
                 }})
 
+    @chat_bp.route("/api/show_message/<int:id_chat>",methods=["GET"])
+    def Showmessage(id_chat):
 
+        chat = Chat.query.filter_by(id=id_chat).first()
 
+        chat.show_last_message = True
+
+        db.session.add(chat)
+        db.session.commit()
+        return jsonify({"ok":True,"msg":"chat actualizado"})
 
     # api para borrar un menasje
     @chat_bp.route("/api/messages/<int:id_message>",methods= ["DELETE"])
@@ -250,7 +269,8 @@ def generate_bp_chat():
                     "id_user_chat":user_infoF["id"],
                     "photo":user_infoF["foto"],
                     "time_last_message": item["date_last_message"],
-                    "id_user_last_message":item["id_user_last_message"]
+                    "id_user_last_message":item["id_user_last_message"],
+                    "show_last_message":item["show_last_message"]
                 }
             else:
                 return None

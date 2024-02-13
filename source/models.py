@@ -239,6 +239,7 @@ class Chat(db.Model):
     fecha_inicio = db.Column(db.String(50), nullable=False)
     last_message = db.Column(db.String(50), nullable=True)
     id_user_last_message = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    show_last_message = db.Column(db.Boolean, nullable = True, default = False)
     date_last_message = db.Column(db.String(50), nullable=True)
 
     # relación 
@@ -248,13 +249,14 @@ class Chat(db.Model):
     id_user_to_rel = db.relationship("User", foreign_keys=[id_user_to], back_populates="user_to")
     user_l_t = db.relationship("User", foreign_keys=[id_user_last_message], back_populates="user_last_message")
 
-    def __init__(self, id_user_from, id_user_to, fecha_inicio, last_message, date_last_message, id_user_last_message):
+    def __init__(self, id_user_from, id_user_to, fecha_inicio, last_message, date_last_message, id_user_last_message,show_last_message):
         self.id_user_from = id_user_from
         self.id_user_to = id_user_to
         self.fecha_inicio = fecha_inicio
         self.last_message = last_message
         self.id_user_last_message = id_user_last_message
         self.date_last_message = date_last_message
+        self.show_last_message = show_last_message
 
     def serialize(self):
         return {
@@ -264,7 +266,8 @@ class Chat(db.Model):
             "fecha_inicio": self.fecha_inicio,
             "last_message": self.last_message,
             "id_user_last_message": self.id_user_last_message,
-            "date_last_message": self.date_last_message
+            "date_last_message": self.date_last_message,
+            "show_last_message":self.show_last_message
         }
     
 class Mensajes(db.Model): 
