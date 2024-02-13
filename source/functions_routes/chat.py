@@ -64,6 +64,13 @@ def generate_bp_chat():
                     "foto":userSendMessageF["foto"],
                     "nombre":userSendMessageF["nombre"] + " " + userSendMessageF["apellido"]
                     }
+            
+
+
+            separe_day = {
+                "day":"hoy",
+                "messages":[format_response_message]
+            }
             info_user_from = User.query.filter_by(id=chatExistF["id_user_from"]).first().serialize()
             format_contact_response = {
                     "id":chatExistF["id"],
@@ -74,13 +81,13 @@ def generate_bp_chat():
                     "photo":info_user_from["foto"],
                     "time_last_message": chatExistF["date_last_message"],
                     "id_user_last_message":chatExistF["id_user_last_message"],
-                    "last_message":chatExistF["last_message"]
+                    "last_message":chatExistF["last_message"],
+                    "first_messages":separe_day
             }
 
 
             socket_io.emit(channel_name_chatRealTime, {"mensaje": format_response_message})
             socket_io.emit(channel_name_ContactMessageRealTime,{"contact":format_contact_response})
-            socket_io.emit("msg","holaaaaaaaaaaaa")
 
             return jsonify({"ok":True,"msg":"Mensaje enviado correctamente","msg_send":format_response_message})
         # creamos un nuevo chat
