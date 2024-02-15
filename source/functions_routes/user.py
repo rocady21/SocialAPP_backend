@@ -146,7 +146,7 @@ def generate_bp():
         seguidores_user = Seguidor.query.filter((Seguidor.id_usuario_seguido == userF["id"]) & (Seguidor.id_estado == 2)).all()
         seguidos_user = Seguidor.query.filter((Seguidor.id_user_seguidor == userF["id"]) & (Seguidor.id_estado == 2)).all()
         number_posts = Post.query.filter(Post.id_user == userF["id"]).all()
-        isFollower = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_session) & (Seguidor.id_usuario_seguido == id_user) | (Seguidor.id_user_seguidor == id_user) & (Seguidor.id_usuario_seguido == id_user_session)).first()
+        isFollower = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_session) & (Seguidor.id_usuario_seguido == id_user)).first()
         chatExist = Chat.query.filter(((Chat.id_user_from == id_user_session) & (Chat.id_user_to == id_user)) | ((Chat.id_user_from == id_user) & (Chat.id_user_to == id_user_session))).first()
 
 
@@ -266,6 +266,7 @@ def generate_bp():
                     it["messages"].reverse()
                     return it
                 result_messages_f = list(map(lambda item: filter_days(item),list_days))
+                result_f = result_messages_f.reverse()
 
                 if isFollower != None:
                     isFollowerF = isFollower.serialize()
