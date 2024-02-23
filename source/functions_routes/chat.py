@@ -109,7 +109,6 @@ def generate_bp_chat():
 
             if "mensaje" in request.json:
                 msg = request.json["mensaje"]
-
                 new_chat = Chat(
                     id_user_from = id_from,
                     id_user_to = id_to,
@@ -132,9 +131,45 @@ def generate_bp_chat():
                 )
                 db.session.add(newMessage)
                 db.session.commit()
-                
+                newMessageUsable = newMessage.serialize()
                 user_infoSend = User.query.filter_by(id=id_to).first()
                 user_infoF = user_infoSend.serialize()
+                channel_name_ContactMessageRealTime = "user_id_" + str(new_chatF["id_user_to"])
+
+                format_response_message = {
+                    "id":newMessageUsable["id"],
+                    "fecha":newMessageUsable["fecha"],
+                    "chat":newMessageUsable["id_chat"],
+                    "usuario":newMessageUsable["id_user"],
+                    "mensaje":newMessageUsable["mensaje"],
+                    "foto":userSendMessageF["foto"],
+                    "nombre":userSendMessageF["nombre"] + " " + userSendMessageF["apellido"]
+                    }
+
+                separe_day = {
+                    "day":"hoy",
+                    "messages":format_response_message
+                }
+
+                info_user_from = User.query.filter_by(id=new_chatF["id_user_from"]).first().serialize()
+                current_time_iso = datetime.now().isoformat()
+
+                format_contact_response = {
+                    "id":new_chatF["id"],
+                    "user_from":new_chatF["id_user_from"],
+                    "user_to":new_chatF["id_user_to"],
+                    "nombre_user": info_user_from["nombre"] + " " + info_user_from["apellido"],
+                    "id_user_chat":info_user_from["id"],
+                    "photo":info_user_from["foto"],
+                    "time_last_message": current_time_iso,
+                    "id_user_last_message":id_from,
+                    "last_message":request.json["mensaje"],
+                    "show_last_message":False,
+                    "firsts_messages":separe_day
+                }
+
+
+                socket_io.emit(channel_name_ContactMessageRealTime,{"contact":format_contact_response})
 
                 
                 return jsonify({"ok":True,"msg":"el chat se creo correctamente","data": {
@@ -158,7 +193,8 @@ def generate_bp_chat():
                     fecha_inicio = hoy,
                     date_last_message = None,
                     last_message= None,
-                    id_user_last_message = None
+                    id_user_last_message = None,
+                    show_last_message = False
                 )
                 db.session.add(new_chat)
                 db.session.commit()

@@ -292,3 +292,150 @@ class Mensajes(db.Model):
             "fecha": self.fecha,
             "mensaje": self.mensaje
         }
+
+# Cuetionario 
+
+class Categoria(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(50),nullable = False)
+
+    # relación 
+    def __init__(self, nombre):
+        self.nombre = nombre
+
+    def serialize(self):
+        return {
+            "id":self.id,
+            "nombre": self.nombre
+        }
+    
+
+class Entidad(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(50),nullable = False)
+    foto = db.Column(db.String(100), nullable = False)
+    id_categoria = db.Column(db.Integer, db.ForeignKey("categoria.id"),nullable = False)
+
+    # relación 
+    def __init__(self, nombre,foto,id_categoria):
+        self.nombre = nombre
+        self.foto = foto
+        self.id_categoria = id_categoria
+
+    def serialize(self):
+        return {
+            "id":self.id,
+            "nombre": self.nombre,
+            "foto": self.foto,
+            "id_categoria": self.id_categoria
+
+        }
+    
+class Cuestionario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(200), nullable = False)
+    descripcion = db.Column(db.String(1000), nullable = True)
+    inicio = db.Column(db.String(100))
+    fin = db.Column(db.String(100),)
+    max_p = db.Column(db.Integer,)
+    id_insignia = db.Column(db.Integer, db.ForeignKey("insignia.id"),nullable = False)
+
+
+    def __init__(self,nombre,descripcion,inicio,fin,max_p,id_insignia):
+        self.nombre = nombre,
+        self.descripcion = descripcion,
+        self.inicio = inicio,
+        self.fin = fin,
+        self.id_insignia = id_insignia
+    
+
+    def serialize(self):
+        return {
+            "id":self.id,
+            "nombre": self.nombre,
+            "descripcion": self.descripcion,
+            "inicio": self.inicio,
+            "fin": self.fin,
+            "max_p": self.max_p,
+            "id_insignia": self.id_insignia
+
+        }
+    
+class Preguntas(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    texto = db.Column(db.String(200), nullable = False)
+    id_cuestionario = db.Column(db.Integer,db.ForeignKey("cuestionario.id"),nullable = False)
+    puntos = db.Column(db.Integer)
+    foto = db.Column(db.String(500), nullable = True)
+
+    def __init__(self,texto,id_cuestionario,puntos,foto):
+        self.texto = texto,
+        self.id_cuestionario = id_cuestionario,
+        self.puntos = puntos,
+        self.foto = foto
+    
+
+    def serialize(self):
+        return {
+            "id":self.id,
+            "texto": self.texto,
+            "id_cuestionario": self.id_cuestionario,
+            "puntos": self.puntos,
+            "foto" : self.foto
+        }
+    
+class Opciones(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    texto = db.Column(db.String(200), nullable = False)
+    id_pregunta = db.Column(db.Integer,db.ForeignKey("preguntas.id"),nullable = False)
+    is_true = db.Column(db.Boolean)
+
+    def __init__(self,texto,id_pregunta,is_true):
+        self.texto = texto,
+        self.id_pregunta = id_pregunta,
+        self.is_true = is_true,
+    
+
+    def serialize(self):
+        return {
+            "id":self.id,
+            "texto": self.texto,
+            "id_pregunta": self.id_pregunta,
+            "is_true": self.is_true,
+        }
+
+
+class CuestionarioUser(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    id_user = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    id_cuestionario = db.Column(db.Integer, db.ForeignKey("cuestionario.id"), nullable=False)
+    id_estado = db.Column(db.Integer, db.ForeignKey("estado.id"), nullable=False)
+
+    def __init__(self, id_user, id_cuestionario, id_estado):
+        self.id_user = id_user
+        self.id_cuestionario = id_cuestionario
+        self.id_estado = id_estado
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "id_user": self.id_user,
+            "id_cuestionario": self.id_cuestionario,
+            "id_estado": self.id_estado,
+        }
+    
+class Respuesta(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    id_cuestionario_user = db.Column(db.Integer, db.ForeignKey("cuestionario_user.id"), nullable=False)
+    id_opcion = db.Column(db.Integer, db.ForeignKey("opciones.id"), nullable=False)
+
+    def __init__(self, id_cuestionario_user, id_opcion):
+        self.id_cuestionario_user = id_cuestionario_user
+        self.id_opcion = id_opcion
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "id_cuestionario_user": self.id_cuestionario_user,
+            "id_opcion": self.id_opcion,
+        }

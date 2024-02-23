@@ -8,6 +8,7 @@ from models import db
 from flask_socketio import SocketIO,emit
 from functions_routes.user import generate_bp
 from functions_routes.chat import generate_bp_chat
+from functions_routes.questions import generate_bp_questions
 from functions_routes.posts import generate_bp_post
 from socket_routes import socket_io
 from flask_jwt_extended import JWTManager
@@ -33,12 +34,12 @@ app.config['JWT_EXPIRATION_DELTA'] = timedelta(minutes=1)
 user_bp = generate_bp()
 chat_bp = generate_bp_chat()
 post_bp = generate_bp_post()
-
+questions_bp = generate_bp_questions()
 
 app.register_blueprint(user_bp)
 app.register_blueprint(chat_bp)
 app.register_blueprint(post_bp)
-
+app.register_blueprint(questions_bp)
 
 
 
