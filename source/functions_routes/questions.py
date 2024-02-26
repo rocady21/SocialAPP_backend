@@ -1,5 +1,5 @@
 from flask import Blueprint,jsonify,request
-from models import db,Estado,CuestionarioUser,Entidad,Insignia,Opciones,Respuesta,Categoria,Preguntas,Cuestionario
+from models import db,Estado,CuestionarioUser,Entidad,Insignia,Opciones,Respuesta,Categoria,Preguntas,Cuestionario,User
 from datetime import datetime,timedelta
 
 
@@ -163,15 +163,113 @@ def generate_bp_questions():
             result = list(map(lambda item:laod_data(item),load_entities))
 
             
-            return jsonify({"ok":True,"data":result})
+            return jsonify({"ok":True,"data":result}),200
         else:
             return jsonify({"ok":False,"msg":"Esta categoria no tiene entidades"}),200
+    
+    #cargar cuestionarios de una entidad
 
-    @questions_bp.route("/api/questions",methods =["GET"])
-    def load_info_questions_by_entity():
+    #cargar info de cuestionario
+    @questions_bp.route("/api/questions/<int:id_question>",methods =["GET"])
+    def load_info_questions_by_entity(id_question):
         
+        #traemos el cuestionario
 
-        
-        return jsonify({"ok":True,"msg":"Cuestionario borrado exitosamente"})
+        cuestionario = Cuestionario.query.filter_by(id=id_question).first()
+        if cuestionario:
+            cuest_f = cuestionario.serialize()
+            info_insignia = Insignia.query.filter_by(id=cuest_f["id_insignia"]).first()
+            insignia_f = info_insignia.serialize()
+            questions = Preguntas.query.filter(Preguntas.id_cuestionario == cuest_f["id"] ).all()
+
+            def load_info_questions(it):
+                item = it.serialize()
+                # cargaremos las opciones de cada pregunta
+                options = Opciones.query.filter(Opciones.id_pregunta == item["id"]).all()
+                
+                def load_info_options(it):
+                    item = it.serialize()
+                    return {
+                        "id":item["id"],
+                        "texto":item["texto"]
+                    }
+                
+                load_info_opt = list(map(lambda item:load_info_options(item),options))
+
+                return {
+                    "id":item["id"],
+                    "texto": item["texto"],
+                    "puntos":item["puntos"],
+                    "foto":item["foto"],
+                    "opciones":load_info_opt
+                }
+
+
+            result_questions = list(map(lambda item:load_info_questions(item),questions))
+
+            return jsonify({"ok":True,"msg":"","data":{
+                "nombre":cuest_f["nombre"],
+                "descripcion":cuest_f["descripcion"],
+                "inicio":cuest_f["inicio"],
+                "fin":cuest_f["fin"],
+                "insignia":insignia_f,
+                "number_of_questions":len(questions),
+                "questions":result_questions
+            }}),200
+
+        else: 
+            return jsonify({"ok":False,"msg":"No hay cuest con ese id"}),400
+    
+
+
+
+    # creacion de la tabla de respuesta del usaurio 
+    @questions_bp.route("/api/questions/user",methods=["POST"])
+    def create_user_response_table():
+        response = request.json
+
+        cuest_exist = Cuestionario.query.filter_by(id=response["id_cuestionario"]).first()
+        user_exist = User.query.filter_by(id=response["user"]).first()
+
+        if user_exist is not None and cuest_exist is not None:
+            new_cuest_user = CuestionarioUser(
+                id_cuestionario=response["id_cuestionario"],
+                id_user=response["id_user"],
+                id_estado=1
+            )
+            db.session.add(new_cuest_user),
+            db.session.commit()
+            return jsonify({"ok":True, "msg":"Cuestionario creado exitosamente"}),200
+        return jsonify({"ok":False,"msg":"debe exisir el user y el cuestionario "}),400
+
+
+
+
+    # insertamos las resp del usuario una por una
+    @questions_bp.route("/api/questions/user/response",methods=["POST"])
+    def create_user_response():
+        response = request.json
+        id_cueest = response["id_cuest"]
+        for x in response["response"]:
+            new_resp = Respuesta(
+                id_cuestionario_user=x["id_cuestionario_user"],
+                id_opcion=x["id_opcion"]
+            )
+            db.session.add(new_resp)
+            db.session.commit()
+
+        #buscamos el cuestionario del user y lo finalizamos
+        cuest_exist = Cuestionario.query.filter_by(id=id_cueest).first()
+        cuest_exist.id_estado = 2
+        db.session.add(cuest_exist),
+        db.session.commit()
+        return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"})
+    
+
+    @questions_bp.route("/api/valid_response",methods=["POST"])
+    def valid_responses():
+
+        return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"})
+
 
     return questions_bp
