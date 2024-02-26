@@ -414,11 +414,13 @@ class CuestionarioUser(db.Model):
     id_user = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     id_cuestionario = db.Column(db.Integer, db.ForeignKey("cuestionario.id"), nullable=False)
     id_estado = db.Column(db.Integer, db.ForeignKey("estado.id"), nullable=False)
+    total_points = db.Column(db.Integer,nullable = True)
 
-    def __init__(self, id_user, id_cuestionario, id_estado):
+    def __init__(self, id_user, id_cuestionario, id_estado,total_points):
         self.id_user = id_user
         self.id_cuestionario = id_cuestionario
         self.id_estado = id_estado
+        self.total_points = total_points
 
     def serialize(self):
         return {
@@ -426,6 +428,7 @@ class CuestionarioUser(db.Model):
             "id_user": self.id_user,
             "id_cuestionario": self.id_cuestionario,
             "id_estado": self.id_estado,
+            "total_points":self.total_points
         }
     
 class Respuesta(db.Model):
