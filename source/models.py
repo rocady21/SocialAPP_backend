@@ -78,7 +78,7 @@ class Insignia(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(70), nullable = False)
     tipo = db.Column(db.String(100), nullable = False)
-    img = db.Column(db.String(70), nullable = False)
+    img = db.Column(db.String(500), nullable = False)
 
     # relacion
     user_insignia = db.relationship('User_Insignia', backref='insignia', lazy=True)
@@ -339,14 +339,16 @@ class Cuestionario(db.Model):
     fin = db.Column(db.String(100),)
     max_p = db.Column(db.Integer,)
     id_insignia = db.Column(db.Integer, db.ForeignKey("insignia.id"),nullable = False)
+    entidad_id = db.Column(db.Integer, db.ForeignKey("entidad.id"),nullable = False)
 
 
-    def __init__(self,nombre,descripcion,inicio,fin,max_p,id_insignia):
+    def __init__(self,nombre,descripcion,inicio,fin,max_p,id_insignia,entidad_id):
         self.nombre = nombre,
         self.descripcion = descripcion,
         self.inicio = inicio,
         self.fin = fin,
         self.id_insignia = id_insignia
+        self.entidad_id = entidad_id
     
 
     def serialize(self):
@@ -357,7 +359,8 @@ class Cuestionario(db.Model):
             "inicio": self.inicio,
             "fin": self.fin,
             "max_p": self.max_p,
-            "id_insignia": self.id_insignia
+            "id_insignia": self.id_insignia,
+            "entidad_id":self.entidad_id
 
         }
     
@@ -388,12 +391,13 @@ class Opciones(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     texto = db.Column(db.String(200), nullable = False)
     id_pregunta = db.Column(db.Integer,db.ForeignKey("preguntas.id"),nullable = False)
-    is_true = db.Column(db.Boolean)
+    is_true = db.Column(db.Boolean, nullable = True, default = False)
+
 
     def __init__(self,texto,id_pregunta,is_true):
         self.texto = texto,
         self.id_pregunta = id_pregunta,
-        self.is_true = is_true,
+        self.is_true = is_true
     
 
     def serialize(self):
