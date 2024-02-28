@@ -266,10 +266,83 @@ def generate_bp_questions():
         return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"})
     
 
+
+    @questions_bp.route("/api/questions/entity/<int:id_entity>",methods=["GET"])
+    def load_questions_from_entity(id_entity):
+
+        questions_entity = Cuestionario.query.filter(Cuestionario.entidad_id == id_entity ).all()
+
+
+        if len(questions_entity) == 0:
+            return jsonify({"ok":False, "msg":"No hay cuestionarios disponibles"}),400
+        else: 
+
+            def filter_info(it):
+                cuest_f = it.serialize()
+                info_insignia = Insignia.query.filter_by(id=cuest_f["id_insignia"]).first()
+                insignia_f = info_insignia.serialize()
+                questions = Preguntas.query.filter(Preguntas.id_cuestionario == cuest_f["id"] ).all()
+
+                def load_info_questions(it):
+                    item = it.serialize()
+                    # cargaremos las opciones de cada pregunta
+                    options = Opciones.query.filter(Opciones.id_pregunta == item["id"]).all()
+                    
+                    def load_info_options(it):
+                        item = it.serialize()
+                        return {
+                            "id":item["id"],
+                            "texto":item["texto"]
+                        }
+                    
+                    load_info_opt = list(map(lambda item:load_info_options(item),options))
+
+                    return {
+                        "id":item["id"],
+                        "texto": item["texto"],
+                        "puntos":item["puntos"],
+                        "foto":item["foto"],
+                        "opciones":load_info_opt
+                    }
+
+
+                result_questions = list(map(lambda item:load_info_questions(item),questions))
+
+                return {
+                    "id":cuest_f["id"],
+                    "nombre":cuest_f["nombre"],
+                    "descripcion":cuest_f["descripcion"],
+                    "inicio":cuest_f["inicio"],
+                    "fin":cuest_f["fin"],
+                    "insignia":insignia_f,
+                    "number_of_questions":len(questions),
+                    "questions":result_questions
+                }
+
+            data = list(map(lambda item: filter_info(item),questions_entity))
+
+            
+
+
+
+
+            return jsonify({"ok":True, "msg":"estas son los quest de la entidad","data":data})
+
+
     @questions_bp.route("/api/valid_response",methods=["POST"])
     def valid_responses():
 
         return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"})
+
+    @questions_bp.route("/api/category",methods=["GET"])
+    def load_categories():
+
+        categoreis = Categoria.query.filter().all()
+
+        cat_f = list(map(lambda item:item.serialize(),categoreis))
+
+
+        return jsonify({"ok":True, "msg":"estas son las categorias","data":cat_f})
 
 
     return questions_bp
