@@ -191,7 +191,9 @@ def generate_bp_questions():
                     item = it.serialize()
                     return {
                         "id":item["id"],
-                        "texto":item["texto"]
+                        "texto":item["texto"],
+                        "isTure":item["is_true"]
+
                     }
                 
                 load_info_opt = list(map(lambda item:load_info_options(item),options))
@@ -229,17 +231,18 @@ def generate_bp_questions():
         response = request.json
 
         cuest_exist = Cuestionario.query.filter_by(id=response["id_cuestionario"]).first()
-        user_exist = User.query.filter_by(id=response["user"]).first()
+        user_exist = User.query.filter_by(id=response["id_user"]).first()
 
         if user_exist is not None and cuest_exist is not None:
             new_cuest_user = CuestionarioUser(
                 id_cuestionario=response["id_cuestionario"],
                 id_user=response["id_user"],
-                id_estado=1
+                id_estado=1,
+                total_points=0
             )
             db.session.add(new_cuest_user),
             db.session.commit()
-            return jsonify({"ok":True, "msg":"Cuestionario creado exitosamente"}),200
+            return jsonify({"ok":True, "msg":"Cuestionario creado exitosamente","cuest_user":new_cuest_user.serialize()}),200
         return jsonify({"ok":False,"msg":"debe exisir el user y el cuestionario "}),400
 
 
@@ -249,27 +252,72 @@ def generate_bp_questions():
     @questions_bp.route("/api/questions/user/response",methods=["POST"])
     def create_user_response():
         response = request.json
-        id_cueest = response["id_cuest"]
-        for x in response["response"]:
-            new_resp = Respuesta(
-                id_cuestionario_user=x["id_cuestionario_user"],
-                id_opcion=x["id_opcion"]
-            )
-            db.session.add(new_resp)
-            db.session.commit()
+        resp = response["resp"]
 
-        #buscamos el cuestionario del user y lo finalizamos
-        cuest_exist = Cuestionario.query.filter_by(id=id_cueest).first()
-        cuest_exist.id_estado = 2
-        db.session.add(cuest_exist),
+
+        opcion = resp["id_opcion"] if resp["id_opcion"] != None else None
+
+        new_resp = Respuesta(
+                id_cuestionario_user=resp["id_cuestionario_user"],
+                id_opcion=opcion
+            )
+        db.session.add(new_resp)
         db.session.commit()
-        return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"})
+
+
+        return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"}),200
     
 
+    @questions_bp.route("/api/questions/user/finished_quest/<int:id_cuest_user>",methods=["GET"])
+    def finished_question_user(id_cuest_user):
+        # calculate points and finished questionnaire
+        cuest_user = CuestionarioUser.query.filter_by(id=id_cuest_user).first()
+        # traigo todas las respuestas 
+        cuest_f = cuest_user.serialize()
+        cuest = Cuestionario.query.filter_by(id=cuest_f["id_cuestionario"]).first().serialize()
+        # questions from cuest
+        questions = Preguntas.query.filter(Preguntas.id_cuestionario == cuest["id"]).all()
+        points = 0
+        resp_user = Respuesta.query.filter(Respuesta.id_cuestionario_user == cuest_f["id"]).all()
 
-    @questions_bp.route("/api/questions/entity/<int:id_entity>",methods=["GET"])
+        for x in resp_user:
+            xF = x.serialize()
+            # get option 
+            option = Opciones.query.filter(Opciones.id == xF["id_opcion"]).first().serialize()
+            # get question
+            Pregunta = Preguntas.query.filter(Preguntas.id == option["id_pregunta"]).first().serialize()
+
+            if option["is_true"] == 1:
+                points += Pregunta["puntos"]
+
+        status_cuest = "Aprobada" if cuest["max_p"] == points else "Perdida"
+
+
+        if status_cuest == "Aprobada" : 
+            # get insignia
+            insg = Insignia.query,filter(Insignia.id == cuest["id_insignia"]).first().serialize()
+            return jsonify({"ok":True, "msg":"Cuestionario finalizado","result":{
+                "Preguntas": len(questions),
+                "Puntos Esperados":cuest["max_p"],
+                "Puntos":points,
+                "Estado":status_cuest,
+                "Insignia": insg
+            }}),200
+        else: 
+            return jsonify({"ok":True, "msg":"Cuestionario finalizado","result":{
+                "Preguntas": len(questions),
+                "Puntos Esperados":cuest["max_p"],
+                "Puntos":points,
+                "Estado":status_cuest
+            }}),200
+            
+
+
+
+    @questions_bp.route("/api/questions/entity/<int:id_entity>",methods=["POST"])
     def load_questions_from_entity(id_entity):
-
+        data = request.json
+        user_seesion = data["id_user_session"]
         questions_entity = Cuestionario.query.filter(Cuestionario.entidad_id == id_entity ).all()
 
 
@@ -282,7 +330,8 @@ def generate_bp_questions():
                 info_insignia = Insignia.query.filter_by(id=cuest_f["id_insignia"]).first()
                 insignia_f = info_insignia.serialize()
                 questions = Preguntas.query.filter(Preguntas.id_cuestionario == cuest_f["id"] ).all()
-
+                # search cuest_user existing 
+                
                 def load_info_questions(it):
                     item = it.serialize()
                     # cargaremos las opciones de cada pregunta
@@ -292,7 +341,7 @@ def generate_bp_questions():
                         item = it.serialize()
                         return {
                             "id":item["id"],
-                            "texto":item["texto"]
+                            "texto":item["texto"],
                         }
                     
                     load_info_opt = list(map(lambda item:load_info_options(item),options))
@@ -307,17 +356,39 @@ def generate_bp_questions():
 
 
                 result_questions = list(map(lambda item:load_info_questions(item),questions))
+                cuest_user = CuestionarioUser.query.filter(CuestionarioUser.id_cuestionario == cuest_f["id"] and CuestionarioUser.id_user == user_seesion).first()
 
-                return {
-                    "id":cuest_f["id"],
-                    "nombre":cuest_f["nombre"],
-                    "descripcion":cuest_f["descripcion"],
-                    "inicio":cuest_f["inicio"],
-                    "fin":cuest_f["fin"],
-                    "insignia":insignia_f,
-                    "number_of_questions":len(questions),
-                    "questions":result_questions
-                }
+
+                if cuest_user != None:
+                    cuest_user_f = cuest_user.serialize()
+
+                    status_cuest_user = Estado.query.filter_by(id = cuest_user_f["id_estado"]).first().serialize()
+                    return {
+                        "id":cuest_f["id"],
+                        "nombre":cuest_f["nombre"],
+                        "descripcion":cuest_f["descripcion"],
+                        "inicio":cuest_f["inicio"],
+                        "fin":cuest_f["fin"],
+                        "insignia":insignia_f,
+                        "number_of_questions":len(questions),
+                        "questions":result_questions,
+                        "status_cuest_user":status_cuest_user["nombre"]
+                    }
+                else :
+                    return {
+                        "id":cuest_f["id"],
+                        "nombre":cuest_f["nombre"],
+                        "descripcion":cuest_f["descripcion"],
+                        "inicio":cuest_f["inicio"],
+                        "fin":cuest_f["fin"],
+                        "insignia":insignia_f,
+                        "number_of_questions":len(questions),
+                        "questions":result_questions
+                    }
+                    
+
+                
+
 
             data = list(map(lambda item: filter_info(item),questions_entity))
 
