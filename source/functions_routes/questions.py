@@ -56,8 +56,6 @@ def generate_bp_questions():
             fin=fecha_sumada_str,
         )
 
-        print("JASJDNNNNNNNNNNNNNNNNNNNNNNN")
-
         db.session.add(nuevo_cuestionario)
         db.session.commit()
 
@@ -293,22 +291,30 @@ def generate_bp_questions():
         status_cuest = "Aprobada" if cuest["max_p"] == points else "Perdida"
 
 
+
+        cuest_user.id_estado = 2
+        db.session.add(cuest_user)
+        db.session.commit()
         if status_cuest == "Aprobada" : 
-            # get insignia
+            # get insignia and insert user_insignia 
             insg = Insignia.query,filter(Insignia.id == cuest["id_insignia"]).first().serialize()
             return jsonify({"ok":True, "msg":"Cuestionario finalizado","result":{
-                "Preguntas": len(questions),
-                "Puntos Esperados":cuest["max_p"],
-                "Puntos":points,
-                "Estado":status_cuest,
-                "Insignia": insg
+                "name":cuest["nombre"],
+                "questions": len(questions),
+                "expected_points":cuest["max_p"],
+                "points":points,
+                "status":status_cuest,
+                "badge": insg
             }}),200
+
+
         else: 
             return jsonify({"ok":True, "msg":"Cuestionario finalizado","result":{
-                "Preguntas": len(questions),
-                "Puntos Esperados":cuest["max_p"],
-                "Puntos":points,
-                "Estado":status_cuest
+                "name":cuest["nombre"],
+                "questions": len(questions),
+                "expected_points":cuest["max_p"],
+                "points":points,
+                "status":status_cuest
             }}),200
             
 
@@ -383,7 +389,8 @@ def generate_bp_questions():
                         "fin":cuest_f["fin"],
                         "insignia":insignia_f,
                         "number_of_questions":len(questions),
-                        "questions":result_questions
+                        "questions":result_questions,
+                        "status_cuest_user":"not_started"
                     }
                     
 

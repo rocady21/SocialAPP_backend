@@ -42,9 +42,6 @@ app.register_blueprint(post_bp)
 app.register_blueprint(questions_bp)
 
 
-with app.app_context():
-    db.create_all()
-
 socket_io.init_app(app)
 
 if __name__ == "__main__":
