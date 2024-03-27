@@ -1,6 +1,6 @@
 from flask import Blueprint
 from flask import jsonify,request
-from models import db,Chat,Comentario_Post,Estado,User,Seguidor,Post,Mensajes
+from models import db,Chat,Comentario_Post,Estado,User,Seguidor,Post,Mensajes,User_Insignia,Insignia
 from utils.getDaysDate import getDaysDate
 from utils.days_in_format import days_in_format 
 from datetime import datetime
@@ -74,12 +74,21 @@ def generate_bp():
             seguidos_user = Seguidor.query.filter((Seguidor.id_user_seguidor == userExistF["id"]) & (Seguidor.id_estado == 2)).all()
             number_posts = Post.query.filter(Post.id_user == userExistF["id"]).all()
             request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == userExistF["id"]) & (Seguidor.id_estado == 1)).all()
+            insg_user = User_Insignia.query.filter(User_Insignia.id_user == userExistF["id"]).all()
+            
+            insg_user_all = []
+
+            for x in insg_user:
+                xF = x.serialize()
+                Badge_user = Insignia.query.filter(Insignia.id == xF["id_insignia"]).first().serialize()
+                insg_user_all.append(Badge_user)
 
             return jsonify({"ok":True,"data":{
                 "number_posts":len(number_posts),
                 "seguidores":len(seguidores_user),
                 "seguidos_user":len(seguidos_user),
                 "exist_friend_request": False if len(request_friend) == 0 else True,
+                "badges_user":insg_user_all,
                 **userExistF,
 
             },"token":access_token}),200
@@ -99,13 +108,23 @@ def generate_bp():
         seguidos_user = Seguidor.query.filter((Seguidor.id_user_seguidor == userf["id"]) & Seguidor.id_estado == 2).all()
         number_posts = Post.query.filter(Post.id_user == userf["id"]).all()
         request_friend = Seguidor.query.filter((Seguidor.id_usuario_seguido == userf["id"]) & (Seguidor.id_estado == 1)).all()
+        insg_user = User_Insignia.query.filter(User_Insignia.id_user == userf["id"]).all()
+            
+        insg_user_all = []
+
+        for x in insg_user:
+            xF = x.serialize()
+            Badge_user = Insignia.query.filter(Insignia.id == xF["id_insignia"]).first().serialize()
+            insg_user_all.append(Badge_user)
+
 
         return jsonify({"isLogged": True,"user":{
             **userf,
             "exist_friend_request": False if len(request_friend) == 0 else True,
             "seguidores":len(seguidores_user),
             "seguidos_user":len(seguidos_user),
-            "number_posts":len(number_posts)
+            "number_posts":len(number_posts),
+            "badges_user":insg_user_all
         },}), 200
 
     @user_bp.route("/api/peoples",methods= ["GET"])
@@ -148,7 +167,14 @@ def generate_bp():
         number_posts = Post.query.filter(Post.id_user == userF["id"]).all()
         isFollower = Seguidor.query.filter((Seguidor.id_user_seguidor == id_user_session) & (Seguidor.id_usuario_seguido == id_user)).first()
         chatExist = Chat.query.filter(((Chat.id_user_from == id_user_session) & (Chat.id_user_to == id_user)) | ((Chat.id_user_from == id_user) & (Chat.id_user_to == id_user_session))).first()
+        insg_user = User_Insignia.query.filter(User_Insignia.id_user == id_user).all()
+            
+        insg_user_all = []
 
+        for x in insg_user:
+            xF = x.serialize()
+            Badge_user = Insignia.query.filter(Insignia.id == xF["id_insignia"]).first().serialize()
+            insg_user_all.append(Badge_user)
 
         print("seguidores",seguidores_user)
         print("seguidos",seguidos_user)
@@ -166,7 +192,8 @@ def generate_bp():
                     "seguidores_user":len(seguidores_user),
                     "isFollower": status_follower["nombre"],
                     "chatExist": False,
-                    "messages":[]
+                    "messages":[],
+                    "badges_user":insg_user_all
                 } }),200 
             else:
                 return jsonify({"ok":True, "user":{
@@ -280,7 +307,8 @@ def generate_bp():
                         "isFollower": status_follower["nombre"],
                         "chatExist": date_format,
                         "messagesExist": len(last_ten_messages),
-                        "messages":result_messages_f
+                        "messages":result_messages_f,
+                        "badges_user":insg_user_all
                     } }),200 
                 else:
                     return jsonify({"ok":True, "user":{
@@ -307,7 +335,9 @@ def generate_bp():
                         "isFollower": status_follower["nombre"],
                         "chatExist": date_format,
                         "messagesExist": len(last_ten_messages),
-                        "messages":[]
+                        "messages":[],
+                        "badges_user":insg_user_all
+
                     } }),200 
                 else:
                     return jsonify({"ok":True, "user":{

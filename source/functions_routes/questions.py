@@ -1,5 +1,5 @@
 from flask import Blueprint,jsonify,request
-from models import db,Estado,CuestionarioUser,Entidad,Insignia,Opciones,Respuesta,Categoria,Preguntas,Cuestionario,User
+from models import db,Estado,CuestionarioUser,Entidad,Insignia,Opciones,Respuesta,Categoria,Preguntas,Cuestionario,User,User_Insignia
 from datetime import datetime,timedelta
 
 
@@ -30,28 +30,28 @@ def generate_bp_questions():
     # se necesitara el nombre, las preguntas y las opciones
     @questions_bp.route("/api/questions",methods = ["POST"])
     def Create_question():
-        response = request.json
+        data = request.json
 
 
         now = datetime.now()
 
-        fecha_sumada = now + timedelta(days=response["fin_in_days"])
+        fecha_sumada = now + timedelta(days=data["fin_in_days"])
 
         fecha_sumada_str = fecha_sumada.strftime("%Y-%m-%d %H:%M:%S")
         # validamos que exista la insignia y la entidad
 
-        insignia_exist = Insignia.query.filter_by(id=response["id_insignia"]).first()
-        entidad_exist = Entidad.query.filter_by(id=response["id_entidad"]).first()
+        insignia_exist = Insignia.query.filter_by(id=data["id_insignia"]).first()
+        entidad_exist = Entidad.query.filter_by(id=data["id_entidad"]).first()
 
         if insignia_exist is None or entidad_exist is None:
             return jsonify({"ok":False,"msg":"debe de ingresar una insignia o entidad existente"})
 
         nuevo_cuestionario = Cuestionario(
-            nombre="One piece",
-            descripcion="Cuestionario de one piece",
-            max_p=100,
-            entidad_id = response["id_entidad"],
-            id_insignia=response["id_insignia"],
+            nombre=data["nombre"],
+            descripcion=data["descripcion"],
+            max_p=data["max_p"],
+            entidad_id = data["id_entidad"],
+            id_insignia=data["id_insignia"],
             inicio=now,
             fin=fecha_sumada_str,
         )
@@ -62,9 +62,9 @@ def generate_bp_questions():
         nuevo_cuestionario_f = nuevo_cuestionario.serialize()
         # ahora crearemos las preguntas
 
-        if len(response["preguntas"]) != 0:
+        if len(data["preguntas"]) != 0:
 
-            preguntas = response["preguntas"]
+            preguntas = data["preguntas"]
 
             def create_questions_and_options(item):
 
@@ -297,14 +297,36 @@ def generate_bp_questions():
         db.session.commit()
         if status_cuest == "Aprobada" : 
             # get insignia and insert user_insignia 
-            insg = Insignia.query,filter(Insignia.id == cuest["id_insignia"]).first().serialize()
+            insg = Insignia.query.filter(Insignia.id == cuest["id_insignia"]).first()
+            user = User.query.filter_by(id=cuest_f["id_user"]).first()
+
+            if insg == None and user == None:
+                return jsonify({
+                    "ok":False,
+                    "msg":"Debe de existir el usuario y la insignia "     
+                }),400
+
+            insg_f = insg.serialize()
+            user_f = user.serialize()
+
+
+            new_user_insign = User_Insignia(
+                fecha_obt=datetime.now(),
+                id_insignia=insg_f["id"],
+                id_user= user_f["id"]
+            )
+
+            db.session.add(new_user_insign)
+            db.session.commit()
+
+
             return jsonify({"ok":True, "msg":"Cuestionario finalizado","result":{
                 "name":cuest["nombre"],
                 "questions": len(questions),
                 "expected_points":cuest["max_p"],
                 "points":points,
                 "status":status_cuest,
-                "badge": insg
+                "badge": insg_f
             }}),200
 
 
