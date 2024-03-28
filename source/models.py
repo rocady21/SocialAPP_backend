@@ -14,6 +14,7 @@ class User(db.Model):
     correo = db.Column(db.String(100),unique =True)
     contraseña = db.Column(db.String(200), nullable = False)
     foto = db.Column(db.String(500), nullable = True)
+    rol = db.Column(db.String(100),nullable = True)
 
 
 
@@ -31,7 +32,7 @@ class User(db.Model):
     user_last_message = db.relationship("Chat", foreign_keys="[Chat.id_user_last_message]", back_populates="user_l_t", lazy="dynamic")
 
 
-    def __init__(self,nombre,apellido,edad,presentacion,correo,contraseña,foto):
+    def __init__(self,nombre,apellido,edad,presentacion,correo,contraseña,foto,rol):
         self.nombre = nombre
         self.apellido = apellido
         self.edad = edad
@@ -39,6 +40,7 @@ class User(db.Model):
         self.correo = correo
         self.contraseña = contraseña
         self.foto = foto
+        self.rol = rol
 
     def serialize(self):
         return {
@@ -49,7 +51,8 @@ class User(db.Model):
         "presentacion":self.presentacion ,
         "correo":self.correo ,
         "contraseña":self.contraseña,
-        "foto":self.foto
+        "foto":self.foto,
+        "rol":self.rol
         }
     
 class User_Insignia(db.Model): 
@@ -313,7 +316,7 @@ class Categoria(db.Model):
 class Entidad(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50),nullable = False)
-    foto = db.Column(db.String(100), nullable = False)
+    foto = db.Column(db.String(500), nullable = False)
     id_categoria = db.Column(db.Integer, db.ForeignKey("categoria.id"),nullable = False)
 
     # relación 
