@@ -350,6 +350,7 @@ class Cuestionario(db.Model):
         self.descripcion = descripcion,
         self.inicio = inicio,
         self.fin = fin,
+        self.max_p = max_p
         self.id_insignia = id_insignia
         self.entidad_id = entidad_id
     

@@ -32,10 +32,12 @@ def generate_bp_questions():
     def Create_question():
         data = request.json
 
+        print("data",data)
+
 
         now = datetime.now()
-
-        fecha_sumada = now + timedelta(days=data["fin_in_days"])
+        
+        fecha_sumada = now + timedelta(days=int(data["fin_in_days"]))
 
         fecha_sumada_str = fecha_sumada.strftime("%Y-%m-%d %H:%M:%S")
         # validamos que exista la insignia y la entidad
@@ -45,11 +47,11 @@ def generate_bp_questions():
 
         if insignia_exist is None or entidad_exist is None:
             return jsonify({"ok":False,"msg":"debe de ingresar una insignia o entidad existente"})
-
+        print("aaaaaaaaaaaa",int(data["max_p"]))
         nuevo_cuestionario = Cuestionario(
             nombre=data["nombre"],
             descripcion=data["descripcion"],
-            max_p=data["max_p"],
+            max_p=int(data["max_p"]),
             entidad_id = data["id_entidad"],
             id_insignia=data["id_insignia"],
             inicio=now,
@@ -429,10 +431,6 @@ def generate_bp_questions():
             return jsonify({"ok":True, "msg":"estas son los quest de la entidad","data":data})
 
 
-    @questions_bp.route("/api/valid_response",methods=["POST"])
-    def valid_responses():
-
-        return jsonify({"ok":True, "msg":"Respuestas insertadas correctamente"})
 
     @questions_bp.route("/api/category",methods=["GET"])
     def load_categories():
@@ -443,6 +441,23 @@ def generate_bp_questions():
 
 
         return jsonify({"ok":True, "msg":"estas son las categorias","data":cat_f})
+    
+    @questions_bp.route("/api/badge",methods=["POST"])
+    def create_badge():
+        req = request.json
+
+        new_insignia = Insignia(
+            img=req["img"],
+            tipo=req["tipo"],
+            nombre=req["nombre"]
+        )
+
+        db.session.add(new_insignia)
+        db.session.commit()
+
+        new_insignia_s = new_insignia.serialize()
+        print(new_insignia_s["id"])
+        return jsonify({"ok":True, "msg":"Insignia creada correctamente","id_insignia":new_insignia_s["id"]})
 
 
     return questions_bp
